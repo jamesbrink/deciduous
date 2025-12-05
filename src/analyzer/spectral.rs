@@ -67,13 +67,13 @@ fn rms(samples: &[f64]) -> f64 {
     (sum_sq / samples.len() as f64).sqrt()
 }
 
-/// Decode MP3 to PCM samples using symphonia
-fn decode_mp3(data: &[u8]) -> Option<(Vec<f64>, u32)> {
+/// Decode audio to PCM samples using symphonia (supports MP3, FLAC, WAV, OGG, etc.)
+fn decode_audio(data: &[u8]) -> Option<(Vec<f64>, u32)> {
     let cursor = std::io::Cursor::new(data.to_vec());
     let mss = MediaSourceStream::new(Box::new(cursor), Default::default());
 
-    let mut hint = Hint::new();
-    hint.with_extension("mp3");
+    // Don't provide a hint - let symphonia auto-detect the format
+    let hint = Hint::new();
 
     let format_opts = FormatOptions::default();
     let metadata_opts = MetadataOptions::default();
@@ -162,8 +162,8 @@ fn band_energy(fft_result: &[Complex<f64>], sample_rate: u32, low_hz: u32, high_
 pub fn analyze(data: &[u8], _declared_sample_rate: u32) -> SpectralResult {
     let mut result = SpectralResult::default();
 
-    // Decode MP3 to PCM
-    let (samples, sample_rate) = match decode_mp3(data) {
+    // Decode audio to PCM (supports MP3, FLAC, WAV, OGG, etc.)
+    let (samples, sample_rate) = match decode_audio(data) {
         Some(s) => s,
         None => return result,
     };
@@ -232,23 +232,40 @@ pub fn analyze(data: &[u8], _declared_sample_rate: u32) -> SpectralResult {
     result.details.upper_drop = result.details.rms_mid_high - result.details.rms_upper;
 
     // Score based on analysis
-    // These thresholds are tuned to match the reference bash implementation
+    // Tuned to detect lossy origins in "lossless" files
+    //
+    // Key insight: upper_drop (difference between 10-15kHz and 17-20kHz bands)
+    // is the most diagnostic metric for lossy damage:
+    // - Real lossless: ~4-6 dB (gradual natural rolloff)
+    // - Lossy 320k: ~8-12 dB (slight damage)
+    // - Lossy 192k: ~12-20 dB (moderate damage)
+    // - Lossy 128k MP3: ~40-70 dB (severe damage, hard cutoff)
 
-    // Steep high frequency rolloff (comparing full signal to 15-20kHz band)
-    if result.details.high_drop > 28.0 {
-        result.score += 25;
+    // Severe damage - almost certainly from low-bitrate lossy (MP3 128k or worse)
+    if result.details.upper_drop > 40.0 {
+        result.score += 50;
+        result.flags.push("severe_hf_damage".to_string());
+    }
+    // Significant damage - likely from lossy source (192k or lower)
+    else if result.details.upper_drop > 15.0 {
+        result.score += 35;
+        result.flags.push("hf_cutoff_detected".to_string());
+    }
+    // Mild damage - possibly from high-bitrate lossy (256k-320k)
+    else if result.details.upper_drop > 10.0 {
+        result.score += 20;
+        result.flags.push("possible_lossy_origin".to_string());
+    }
+
+    // Steep overall rolloff (full spectrum to 15-20kHz)
+    if result.details.high_drop > 48.0 {
+        result.score += 15;
         result.flags.push("steep_hf_rolloff".to_string());
     }
 
-    // Dead upper band (17-20kHz much quieter than 10-15kHz)
-    if result.details.upper_drop > 22.0 {
-        result.score += 25;
-        result.flags.push("dead_upper_band".to_string());
-    }
-
-    // Silent 17kHz+ (absolute threshold)
-    if result.details.rms_upper < -85.0 {
-        result.score += 20;
+    // Silent upper frequencies (absolute check)
+    if result.details.rms_upper < -50.0 {
+        result.score += 15;
         result.flags.push("silent_17k+".to_string());
     }
 

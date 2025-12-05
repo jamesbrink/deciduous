@@ -49,7 +49,12 @@ fn main() {
             .ok();
     }
 
-    // Collect MP3 files
+    // Supported audio formats
+    let supported_extensions: std::collections::HashSet<&str> = [
+        "flac", "wav", "wave", "aiff", "aif", "mp3", "m4a", "aac", "ogg", "opus", "wma", "alac"
+    ].iter().cloned().collect();
+
+    // Collect audio files
     let files: Vec<PathBuf> = if args.path.is_dir() {
         WalkDir::new(&args.path)
             .into_iter()
@@ -57,7 +62,8 @@ fn main() {
             .filter(|e| {
                 e.path()
                     .extension()
-                    .map(|ext| ext.to_ascii_lowercase() == "mp3")
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| supported_extensions.contains(ext.to_ascii_lowercase().as_str()))
                     .unwrap_or(false)
             })
             .map(|e| e.path().to_path_buf())
@@ -67,14 +73,14 @@ fn main() {
     };
 
     if files.is_empty() {
-        eprintln!("No MP3 files found");
+        eprintln!("No audio files found (supported: flac, wav, mp3, m4a, ogg, opus, aiff)");
         std::process::exit(1);
     }
 
     if !args.quiet {
-        eprintln!("\x1b[1mLosselot - MP3 Transcode Detector\x1b[0m");
+        eprintln!("\x1b[1mLosselot - Lossy Source Detector\x1b[0m");
         eprintln!("{}", "─".repeat(70));
-        eprintln!("Found {} MP3 file(s)\n", files.len());
+        eprintln!("Found {} audio file(s)\n", files.len());
     }
 
     // Set up progress bar
