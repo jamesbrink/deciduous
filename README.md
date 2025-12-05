@@ -76,6 +76,17 @@ This is where it gets interesting. Each row is one of your files. The columns sh
 
 **What to look for:** See those red/orange dots? Those mark where the frequency energy suddenly drops off. Real lossless audio has smooth gradients across all columns. Transcoded files have sharp cutoffs - that's the "scar" left by lossy compression.
 
+**Collection Quality Map:**
+
+![Collection Quality Map](docs/collection_heatmap.png)
+
+Below the waterfall, you'll see a bubble chart showing your library's health at a glance. Files appear as colored bubbles grouped within folder circles:
+- **Green bubbles** - Clean files (genuine lossless)
+- **Yellow bubbles** - Suspect files (worth investigating)
+- **Red bubbles** - Transcode files (fake lossless)
+
+The size of each folder circle reflects how many files it contains. Click any bubble to jump to that file's detailed analysis.
+
 ### Detailed File Analysis
 
 Click any file to see its full breakdown:

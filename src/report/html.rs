@@ -782,6 +782,11 @@ pub fn write<W: Write>(writer: &mut W, results: &[AnalysisResult]) -> io::Result
             </div>
         </div>
 
+        <div class="chart-card" style="margin-bottom: 2.5rem;">
+            <div class="chart-title">Collection Quality Map <span style="font-weight: 400; color: var(--dim); font-size: 0.75rem;">(Files as bubbles grouped by folder)</span></div>
+            <div id="collection-heatmap"></div>
+        </div>
+
         <div class="detail-panel" id="detail-panel">
             <div class="detail-header">
                 <div class="detail-filename" id="detail-filename">filename.mp3</div>
@@ -2294,6 +2299,137 @@ pub fn write<W: Write>(writer: &mut W, results: &[AnalysisResult]) -> io::Result
         document.getElementById('tooltip').classList.remove('visible');
     }}
 
+    // Collection Quality Bubble Map - packed circles showing file quality distribution
+    function drawCollectionHeatmap() {{
+        const container = document.getElementById('collection-heatmap');
+
+        if (data.files.length === 0) {{
+            container.innerHTML = '<div style="text-align: center; color: var(--dim); padding: 2rem;">No files to analyze</div>';
+            return;
+        }}
+
+        // Build hierarchical data for pack layout
+        // Root -> Folders -> Files
+        const folderMap = new Map();
+        data.files.forEach(file => {{
+            const path = file.filepath || file.filename;
+            const lastSlash = path.lastIndexOf('/');
+            const folder = lastSlash > 0 ? path.substring(0, lastSlash) : '(root)';
+            const shortName = folder === '(root)' ? '(root)' : folder.split('/').slice(-1)[0];
+
+            if (!folderMap.has(folder)) {{
+                folderMap.set(folder, {{ name: shortName, fullPath: folder, children: [] }});
+            }}
+            folderMap.get(folder).children.push({{
+                name: file.filename,
+                file: file,
+                value: 1,
+                verdict: file.verdict
+            }});
+        }});
+
+        const hierarchyData = {{
+            name: 'root',
+            children: Array.from(folderMap.values())
+        }};
+
+        // Setup dimensions
+        const containerWidth = container.clientWidth || 800;
+        const width = Math.min(containerWidth, 900);
+        const height = Math.min(450, width * 0.5);
+
+        // Create SVG
+        const svg = d3.select('#collection-heatmap')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('viewBox', `0 0 ${{width}} ${{height}}`);
+
+        // Create pack layout
+        const pack = d3.pack()
+            .size([width - 4, height - 4])
+            .padding(3);
+
+        const root = d3.hierarchy(hierarchyData)
+            .sum(d => d.value)
+            .sort((a, b) => b.value - a.value);
+
+        pack(root);
+
+        // Draw folder circles (depth 1)
+        const folderGroups = svg.selectAll('.folder-group')
+            .data(root.children || [])
+            .enter()
+            .append('g')
+            .attr('class', 'folder-group');
+
+        // Folder background circles
+        folderGroups.append('circle')
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y)
+            .attr('r', d => d.r)
+            .attr('fill', 'var(--card-bg)')
+            .attr('stroke', 'var(--border)')
+            .attr('stroke-width', 1.5)
+            .attr('opacity', 0.6);
+
+        // Folder labels
+        folderGroups.append('text')
+            .attr('x', d => d.x)
+            .attr('y', d => d.y - d.r + 14)
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'var(--dim)')
+            .attr('font-size', d => Math.min(11, d.r / 4))
+            .attr('font-weight', 500)
+            .text(d => {{
+                const name = d.data.name;
+                const maxLen = Math.floor(d.r / 4);
+                return name.length > maxLen ? name.slice(0, maxLen - 2) + '..' : name;
+            }});
+
+        // Draw file bubbles (depth 2)
+        const fileCircles = svg.selectAll('.file-bubble')
+            .data(root.leaves())
+            .enter()
+            .append('circle')
+            .attr('class', 'file-bubble')
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y)
+            .attr('r', d => Math.max(d.r, 4))
+            .attr('fill', d => {{
+                if (d.data.verdict === 'Ok') return colors.clean;
+                if (d.data.verdict === 'Suspect') return colors.suspect;
+                return colors.transcode;
+            }})
+            .attr('opacity', 0.85)
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 0.5)
+            .style('cursor', 'pointer')
+            .on('mouseover', function(event, d) {{
+                d3.select(this)
+                    .attr('opacity', 1)
+                    .attr('stroke-width', 2);
+                const file = d.data.file;
+                showTooltip(event, `${{file.filename}} (${{file.verdict}}, ${{file.score}}%)`);
+            }})
+            .on('mouseout', function() {{
+                d3.select(this)
+                    .attr('opacity', 0.85)
+                    .attr('stroke-width', 0.5);
+                hideTooltip();
+            }})
+            .on('click', (event, d) => showDetail(d.data.file));
+
+        // Legend
+        container.insertAdjacentHTML('beforeend',
+            `<div style="display: flex; justify-content: center; gap: 1.5rem; padding: 0.75rem 0; font-size: 0.75rem;">
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: ${{colors.clean}}; border-radius: 50%; margin-right: 4px; vertical-align: middle;"></span> Clean</span>
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: ${{colors.suspect}}; border-radius: 50%; margin-right: 4px; vertical-align: middle;"></span> Suspect</span>
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: ${{colors.transcode}}; border-radius: 50%; margin-right: 4px; vertical-align: middle;"></span> Transcode</span>
+                <span style="color: var(--dim); margin-left: 1rem;">Click any bubble to analyze</span>
+            </div>`);
+    }}
+
     // Build table
     function buildTable() {{
         const tbody = document.getElementById('results-table');
@@ -2329,6 +2465,7 @@ pub fn write<W: Write>(writer: &mut W, results: &[AnalysisResult]) -> io::Result
     drawDonutChart();
     drawScoreChart();
     drawSpectralWaterfall();
+    drawCollectionHeatmap();
     buildTable();
 
     // Auto-show first problematic file if any
