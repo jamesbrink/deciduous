@@ -3,7 +3,7 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use losselot::{AnalysisResult, Analyzer, Verdict};
 use rayon::prelude::*;
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, Write};
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
@@ -58,33 +58,38 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    // Auto-detect GUI mode: if no path provided AND no terminal attached (double-clicked)
-    let use_gui = args.gui || (args.path.is_none() && !std::io::stdin().is_terminal());
+    // Determine if we should use GUI mode
+    // With GUI feature: launch GUI if --gui flag OR no path provided
+    // This makes double-click behavior "just work"
+    #[cfg(feature = "gui")]
+    let use_gui = args.gui || args.path.is_none();
+
+    #[cfg(not(feature = "gui"))]
+    let use_gui = false;
 
     // Handle GUI mode
+    #[cfg(feature = "gui")]
     let path = if use_gui {
         match pick_path_gui() {
             Some(p) => p,
             None => {
-                // Show message if launched via GUI with no selection
-                if !std::io::stderr().is_terminal() {
-                    rfd::MessageDialog::new()
-                        .set_title("Losselot")
-                        .set_description("No file or folder selected.")
-                        .set_level(rfd::MessageLevel::Info)
-                        .show();
-                } else {
-                    eprintln!("No file or folder selected.");
-                }
+                // User cancelled - show message and exit
+                eprintln!("No file or folder selected.");
                 std::process::exit(0);
             }
         }
-    } else if let Some(p) = args.path.clone() {
+    } else {
+        // Path was provided via CLI
+        args.path.clone().unwrap()
+    };
+
+    #[cfg(not(feature = "gui"))]
+    let path = if let Some(p) = args.path.clone() {
         p
     } else {
-        // No path and running in terminal - show help
-        eprintln!("Usage: losselot <PATH> or losselot --gui");
+        eprintln!("Usage: losselot <PATH>");
         eprintln!("Run 'losselot --help' for more options.");
+        eprintln!("Note: GUI mode not available in this build.");
         std::process::exit(1);
     };
 
@@ -298,6 +303,7 @@ fn main() {
     }
 }
 
+#[cfg(feature = "gui")]
 fn pick_path_gui() -> Option<PathBuf> {
     // First try folder picker
     if let Some(folder) = rfd::FileDialog::new()

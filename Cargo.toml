@@ -1,10 +1,14 @@
 [package]
 name = "losselot"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Detect MP3s transcoded from lower quality sources"
 license = "MIT"
 repository = "https://github.com/notactuallytreyanastasio/losselot"
+
+[features]
+default = ["gui"]
+gui = ["dep:rfd"]
 
 [dependencies]
 # Audio decoding
@@ -29,8 +33,8 @@ rayon = "1.8"
 # Progress indication
 indicatif = "0.17"
 
-# GUI file dialog
-rfd = "0.15"
+# GUI file dialog (optional - disabled for static Linux builds)
+rfd = { version = "0.15", optional = true }
 
 # Cross-platform file opening
 open = "5.3"
