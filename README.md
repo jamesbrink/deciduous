@@ -8,6 +8,28 @@ Ever downloaded a FLAC or WAV and wondered if it's the real deal, or just an MP3
 
 ---
 
+## Try It Now
+
+Clone and run in 30 seconds:
+
+```bash
+git clone https://github.com/notactuallytreyanastasio/losselot.git
+cd losselot
+cargo build --release
+./target/release/losselot serve examples/ --port 3000
+```
+
+Open [http://localhost:3000](http://localhost:3000) and explore the interactive UI. The `examples/` folder contains test files demonstrating different encoding scenarios - transcodes, re-encodes, and clean files.
+
+**No test files yet?** Generate them:
+
+```bash
+cd examples && ./generate_test_files.sh && cd ..
+./target/release/losselot serve examples/ --port 3000
+```
+
+---
+
 ## Download
 
 | Platform | Download | Notes |
