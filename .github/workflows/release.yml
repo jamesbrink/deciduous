@@ -67,8 +67,60 @@ jobs:
           name: losselot-${{ matrix.name }}
           path: losselot-${{ matrix.name }}${{ matrix.ext }}
 
+  build-appimage:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libxdo-dev \
+            libfuse2 \
+            librsvg2-bin
+
+      - name: Build with GUI
+        run: cargo build --release
+
+      - name: Download linuxdeploy
+        run: |
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+
+      - name: Create AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps
+          cp target/release/losselot AppDir/usr/bin/
+          cp appimage/losselot.desktop AppDir/usr/share/applications/
+          cp appimage/losselot.svg AppDir/usr/share/icons/hicolor/scalable/apps/
+          # Create PNG icon for compatibility
+          rsvg-convert -w 256 -h 256 appimage/losselot.svg -o AppDir/usr/share/icons/hicolor/256x256/apps/losselot.png || true
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps || true
+
+      - name: Build AppImage
+        run: |
+          export VERSION=${{ github.ref_name }}
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage \
+            --desktop-file appimage/losselot.desktop \
+            --icon-file appimage/losselot.svg
+          mv Losselot-*.AppImage losselot-linux-amd64.AppImage || mv *.AppImage losselot-linux-amd64.AppImage
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: losselot-linux-appimage
+          path: losselot-linux-amd64.AppImage
+
   release:
-    needs: build
+    needs: [build, build-appimage]
     runs-on: ubuntu-latest
 
     steps:
@@ -84,6 +136,7 @@ jobs:
         with:
           files: |
             artifacts/losselot-linux-amd64/losselot-linux-amd64
+            artifacts/losselot-linux-appimage/losselot-linux-amd64.AppImage
             artifacts/losselot-darwin-amd64/losselot-darwin-amd64
             artifacts/losselot-darwin-arm64/losselot-darwin-arm64
             artifacts/losselot-windows-amd64/losselot-windows-amd64.exe

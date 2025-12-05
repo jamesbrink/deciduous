@@ -4,14 +4,15 @@ Detect "lossless" audio files that were actually created from lossy sources.
 
 ## Download
 
-| Platform | Download |
-|----------|----------|
-| macOS Apple Silicon | [losselot-darwin-arm64](https://github.com/notactuallytreyanastasio/losselot/releases/download/v0.2.0/losselot-darwin-arm64) |
-| macOS Intel | [losselot-darwin-amd64](https://github.com/notactuallytreyanastasio/losselot/releases/download/v0.2.0/losselot-darwin-amd64) |
-| Linux x86_64 | [losselot-linux-amd64](https://github.com/notactuallytreyanastasio/losselot/releases/download/v0.2.0/losselot-linux-amd64) |
-| Windows x86_64 | [losselot-windows-amd64.exe](https://github.com/notactuallytreyanastasio/losselot/releases/download/v0.2.0/losselot-windows-amd64.exe) |
+| Platform | Download | GUI |
+|----------|----------|-----|
+| macOS Apple Silicon | [losselot-darwin-arm64](https://github.com/notactuallytreyanastasio/losselot/releases/latest/download/losselot-darwin-arm64) | Yes |
+| macOS Intel | [losselot-darwin-amd64](https://github.com/notactuallytreyanastasio/losselot/releases/latest/download/losselot-darwin-amd64) | Yes |
+| Linux x86_64 (AppImage) | [losselot-linux-amd64.AppImage](https://github.com/notactuallytreyanastasio/losselot/releases/latest/download/losselot-linux-amd64.AppImage) | Yes |
+| Linux x86_64 (static) | [losselot-linux-amd64](https://github.com/notactuallytreyanastasio/losselot/releases/latest/download/losselot-linux-amd64) | CLI only |
+| Windows x86_64 | [losselot-windows-amd64.exe](https://github.com/notactuallytreyanastasio/losselot/releases/latest/download/losselot-windows-amd64.exe) | Yes |
 
-**No dependencies** - just download and run.
+**No dependencies** - just download and run. Linux AppImage includes GTK for GUI support.
 
 ## Just Double-Click
 
