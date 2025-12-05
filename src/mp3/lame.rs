@@ -57,16 +57,16 @@ impl LameHeader {
     /// Extract LAME header from MP3 file data
     ///
     /// The LAME header is located after the Xing/Info header in the first frame.
-    /// Structure:
-    /// - Xing/Info header at offset 0x24 (stereo) or 0x15 (mono) from frame start
-    /// - LAME string follows Xing data
-    /// - Lowpass is at LAME offset + 11, stored as Hz/100
+    /// We only search in the first 2KB to avoid false matches in audio data.
     pub fn extract(data: &[u8]) -> Option<Self> {
         let mut header = LameHeader::default();
 
+        // Only search in the first frame region (first 2KB should be plenty)
+        let search_region = &data[..data.len().min(2048)];
+
         // Look for Xing or Info header
-        let xing_pos = find_pattern(data, b"Xing");
-        let info_pos = find_pattern(data, b"Info");
+        let xing_pos = find_pattern(search_region, b"Xing");
+        let info_pos = find_pattern(search_region, b"Info");
 
         let vbr_header_pos = match (xing_pos, info_pos) {
             (Some(x), _) => {
@@ -82,34 +82,34 @@ impl LameHeader {
 
         // Parse Xing/Info header if found
         if let Some(pos) = vbr_header_pos {
-            if pos + 8 <= data.len() {
+            if pos + 8 <= search_region.len() {
                 let flags = u32::from_be_bytes([
-                    data[pos + 4],
-                    data[pos + 5],
-                    data[pos + 6],
-                    data[pos + 7],
+                    search_region[pos + 4],
+                    search_region[pos + 5],
+                    search_region[pos + 6],
+                    search_region[pos + 7],
                 ]);
 
                 let mut offset = pos + 8;
 
                 // Frames flag (bit 0)
-                if flags & 0x01 != 0 && offset + 4 <= data.len() {
+                if flags & 0x01 != 0 && offset + 4 <= search_region.len() {
                     header.total_frames = Some(u32::from_be_bytes([
-                        data[offset],
-                        data[offset + 1],
-                        data[offset + 2],
-                        data[offset + 3],
+                        search_region[offset],
+                        search_region[offset + 1],
+                        search_region[offset + 2],
+                        search_region[offset + 3],
                     ]));
                     offset += 4;
                 }
 
                 // Bytes flag (bit 1)
-                if flags & 0x02 != 0 && offset + 4 <= data.len() {
+                if flags & 0x02 != 0 && offset + 4 <= search_region.len() {
                     header.total_bytes = Some(u32::from_be_bytes([
-                        data[offset],
-                        data[offset + 1],
-                        data[offset + 2],
-                        data[offset + 3],
+                        search_region[offset],
+                        search_region[offset + 1],
+                        search_region[offset + 2],
+                        search_region[offset + 3],
                     ]));
                     offset += 4;
                 }
@@ -121,42 +121,74 @@ impl LameHeader {
 
                 // Quality flag (bit 3) - skip 4 bytes
                 if flags & 0x08 != 0 {
-                    let _ = offset + 4; // Quality indicator, not used further
+                    offset += 4;
                 }
 
-                // LAME header should be right after Xing data
-                // But we'll also do a broader search
+                // Look for LAME tag right after Xing data (within ~50 bytes)
+                // The LAME tag immediately follows the Xing/Info structure
+                let lame_search_start = offset;
+                let lame_search_end = (offset + 50).min(search_region.len());
+
+                if let Some(rel_pos) = find_pattern(&search_region[lame_search_start..lame_search_end], b"LAME") {
+                    let lame_pos = lame_search_start + rel_pos;
+
+                    // Extract version string
+                    let version_end = (lame_pos + 9).min(search_region.len());
+                    if let Ok(version) = std::str::from_utf8(&search_region[lame_pos..version_end]) {
+                        header.encoder = version.trim_end_matches('\0').to_string();
+                    }
+
+                    // Lowpass filter is at offset 10 from LAME string
+                    // Stored as Hz/100 (so 160 = 16000 Hz, 170 = 17000 Hz)
+                    if lame_pos + 10 < search_region.len() {
+                        let lowpass_byte = search_region[lame_pos + 10];
+                        // Sanity check: valid lowpass values are 50-220 (5kHz to 22kHz)
+                        if lowpass_byte >= 50 && lowpass_byte <= 220 {
+                            header.lowpass = Some(lowpass_byte as u32 * 100);
+                        }
+                    }
+
+                    // VBR method and quality are in the byte at offset 9
+                    if lame_pos + 9 < search_region.len() {
+                        let info_byte = search_region[lame_pos + 9];
+                        header.vbr_method = Some(info_byte & 0x0F);
+                        header.quality = Some((info_byte >> 4) & 0x0F);
+                    }
+
+                    return Some(header);
+                }
+
+                // Check for Lavc (ffmpeg/libav) encoder - doesn't have lowpass info
+                if let Some(rel_pos) = find_pattern(&search_region[lame_search_start..lame_search_end], b"Lavc") {
+                    let lavc_pos = lame_search_start + rel_pos;
+                    let version_end = (lavc_pos + 12).min(search_region.len());
+                    if let Ok(version) = std::str::from_utf8(&search_region[lavc_pos..version_end]) {
+                        header.encoder = version.trim_end_matches('\0').to_string();
+                    }
+                    // Lavc doesn't include lowpass info, so we leave it as None
+                    return Some(header);
+                }
             }
         }
 
-        // Look for LAME encoder string
-        if let Some(lame_pos) = find_pattern(data, b"LAME") {
-            // Extract version string (e.g., "LAME3.100" or "LAME3.99r")
-            let version_end = (lame_pos + 9).min(data.len());
-            if let Ok(version) = std::str::from_utf8(&data[lame_pos..version_end]) {
+        // Fallback: search first 500 bytes for LAME (for files without Xing header)
+        if let Some(lame_pos) = find_pattern(&search_region[..search_region.len().min(500)], b"LAME") {
+            let version_end = (lame_pos + 9).min(search_region.len());
+            if let Ok(version) = std::str::from_utf8(&search_region[lame_pos..version_end]) {
                 header.encoder = version.trim_end_matches('\0').to_string();
             }
 
-            // Lowpass filter is at offset 11 from LAME string
-            // Stored as Hz/100 (so 160 = 16000 Hz)
-            if lame_pos + 11 < data.len() {
-                let lowpass_byte = data[lame_pos + 11];
-                if lowpass_byte > 0 {
+            if lame_pos + 10 < search_region.len() {
+                let lowpass_byte = search_region[lame_pos + 10];
+                if lowpass_byte >= 50 && lowpass_byte <= 220 {
                     header.lowpass = Some(lowpass_byte as u32 * 100);
                 }
-            }
-
-            // VBR method and quality are in the byte at offset 9
-            if lame_pos + 9 < data.len() {
-                let info_byte = data[lame_pos + 9];
-                header.vbr_method = Some(info_byte & 0x0F);
-                header.quality = Some((info_byte >> 4) & 0x0F);
             }
 
             return Some(header);
         }
 
-        // If we found Xing/Info but no LAME, still return what we have
+        // If we found Xing/Info but no encoder tag, still return what we have
         if vbr_header_pos.is_some() {
             return Some(header);
         }
