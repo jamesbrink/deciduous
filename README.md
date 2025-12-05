@@ -1,266 +1,175 @@
-# MP3 Detective - Go Package
+# Losselot
 
-## Overview
+Detect MP3s that have been transcoded from lower quality sources.
 
-This is a cross-platform MP3 transcode detection tool that combines spectral analysis and binary forensics to identify MP3 files that have been transcoded from lower-quality sources.
+## What It Does
 
-## Files Included
+Losselot combines **spectral analysis** and **binary forensics** to identify MP3 files that claim to be high bitrate but were actually encoded from lower quality sources.
 
-1. `mp3_detective.sh` - The reference bash implementation (requires ffmpeg + sox)
-2. `CLAUDE_CODE_PROMPT.md` - Instructions for Claude Code to build the Go version
+### Detection Methods
 
----
+1. **Binary Analysis** (no external dependencies)
+   - Parses MP3 frame headers
+   - Extracts LAME/Xing header information
+   - **Key check**: LAME header contains lowpass filter frequency - if a "320kbps" file has lowpass=16000Hz, it was transcoded from 128kbps
+   - Detects multiple encoder signatures
+   - Analyzes frame size consistency
 
-## CLAUDE_CODE_PROMPT.md
+2. **Spectral Analysis**
+   - Decodes MP3 to PCM using symphonia (pure Rust)
+   - Performs FFT to measure energy in frequency bands
+   - Compares energy dropoff between bands (10-15kHz, 15-20kHz, 17-20kHz)
+   - Transcodes have a characteristic "cliff" where high frequencies die
 
-Use this prompt with Claude Code to generate the Go implementation:
+### Scoring
 
----
+- **0-34%**: OK (clean file)
+- **35-64%**: SUSPECT (might be transcoded)
+- **65-100%**: TRANSCODE (almost certainly transcoded)
 
-# Task: Build a Cross-Platform MP3 Transcode Detector in Go
+## Installation
 
-## What This Tool Does
+### From Source
 
-Detects if MP3 files have been transcoded from lower bitrate sources using two complementary approaches:
-
-### 1. Binary/Structural Analysis (no external deps)
-- Parse MP3 frame headers directly (sync words 0xFFE/0xFFF)
-- Extract and validate LAME/Xing/Info headers
-- **Key check**: LAME header contains lowpass filter frequency - if a 320kbps file has lowpass=16000Hz, it's a transcode from 128kbps
-- Detect multiple encoder signatures in the file
-- Analyze frame size consistency (high variance in CBR = suspicious)
-- Check ID3 tags for encoder mismatches
-
-### 2. Spectral Analysis (requires ffmpeg)
-- Decode MP3 to raw PCM using ffmpeg (shelled out)
-- Perform FFT on the audio data
-- Measure energy in frequency bands:
-  - 10-15 kHz (mid-high)
-  - 15-20 kHz (high)  
-  - 17-20 kHz (upper - the dead giveaway zone)
-- Compare energy dropoff between bands
-- High bitrate files should have gradual rolloff; transcodes have a cliff
-
-### Scoring Logic
-- Binary analysis flags: `lowpass_mismatch`, `multi_encoder_sigs`, `irregular_frames`, `id3_encoder_mismatch`
-- Spectral analysis flags: `steep_hf_rolloff`, `dead_upper_band`, `silent_17k+`, `early_cutoff`
-- Combined score 0-100%
-- Verdicts: OK (0-34%), SUSPECT (35-64%), TRANSCODE (65-100%)
-- Bonus points when both analyses agree
-
-## Project Structure
-
-```
-mp3detective/
-├── cmd/
-│   └── mp3detective/
-│       └── main.go           # CLI entry point
-├── pkg/
-│   ├── analyzer/
-│   │   ├── analyzer.go       # Main analysis orchestrator
-│   │   ├── spectral.go       # FFT-based frequency analysis
-│   │   └── binary.go         # MP3 structure parsing
-│   ├── mp3parser/
-│   │   ├── frame.go          # MP3 frame header parsing
-│   │   ├── lame.go           # LAME/Xing header extraction
-│   │   └── id3.go            # ID3 tag parsing
-│   └── report/
-│       ├── report.go         # Report generation interface
-│       ├── html.go           # HTML report (embed the CSS)
-│       ├── csv.go            # CSV output
-│       └── json.go           # JSON output
-├── internal/
-│   └── fft/
-│       └── fft.go            # Pure Go FFT implementation (or use go-dsp)
-├── go.mod
-├── go.sum
-├── Makefile                  # Cross-compilation targets
-└── README.md
+```bash
+git clone https://github.com/notactuallytreyanastasio/losselot.git
+cd losselot
+cargo build --release
+./target/release/losselot --help
 ```
 
-## Key Implementation Details
+### Pre-built Binaries
 
-### MP3 Frame Parsing (pkg/mp3parser/frame.go)
+Download from [Releases](https://github.com/notactuallytreyanastasio/losselot/releases):
+- `losselot-darwin-amd64` - macOS Intel
+- `losselot-darwin-arm64` - macOS Apple Silicon
+- `losselot-linux-amd64` - Linux x86_64
+- `losselot-windows-amd64.exe` - Windows x86_64
 
-MP3 frames start with sync word. Parse the 4-byte header:
-
-```go
-// Frame header structure (4 bytes)
-// AAAAAAAA AAABBCCD EEEEFFGH IIJJKLMM
-// A = sync (11 bits, all 1s)
-// B = MPEG version (2 bits): 00=2.5, 01=reserved, 10=2, 11=1
-// C = Layer (2 bits): 00=reserved, 01=III, 10=II, 11=I
-// D = Protection bit
-// E = Bitrate index (4 bits) - lookup table
-// F = Sample rate index (2 bits) - lookup table
-// G = Padding bit
-// H = Private bit
-// I = Channel mode
-// J = Mode extension
-// K = Copyright
-// L = Original
-// M = Emphasis
-
-type FrameHeader struct {
-    Version      int  // 1, 2, or 2.5
-    Layer        int  // 1, 2, or 3
-    Bitrate      int  // kbps
-    SampleRate   int  // Hz
-    Padding      bool
-    ChannelMode  int
-    FrameSize    int  // calculated
-}
-
-func ParseFrameHeader(data []byte) (*FrameHeader, error)
-```
-
-### LAME Header Extraction (pkg/mp3parser/lame.go)
-
-LAME writes a VBR header in the first frame. Key fields:
-
-```go
-type LAMEHeader struct {
-    Encoder     string  // "LAME3.100" etc
-    VBRMethod   int     // 0=CBR, 1-5=VBR methods
-    Lowpass     int     // Lowpass filter frequency (Hz) - THIS IS THE KEY
-    EncoderDelay int
-    Padding     int
-    // ... more fields
-}
-
-// LAME header is at offset 0x24 (36 bytes) into Xing frame for stereo
-// or 0x15 (21 bytes) for mono
-// Look for "LAME" string, then parse subsequent bytes
-```
-
-The lowpass field is at byte offset 9 from "LAME" string, stored as value/100.
-So 0xA0 (160) = 16000 Hz lowpass.
-
-**Critical detection**: If file claims 320kbps but LAME lowpass is 16000Hz, it's 99% a transcode from 128kbps.
-
-### Spectral Analysis (pkg/analyzer/spectral.go)
-
-```go
-// Shell out to ffmpeg for decoding (most reliable cross-platform)
-func decodeToRaw(mp3Path string) ([]float64, int, error) {
-    // ffmpeg -i input.mp3 -f f32le -acodec pcm_f32le -ac 1 -ar 44100 -
-    // Returns mono float32 samples at 44100Hz
-}
-
-// Perform FFT and measure energy in bands
-func analyzeSpectrum(samples []float64, sampleRate int) *SpectralResult {
-    // Use overlapping windows (Hanning) for better frequency resolution
-    // FFT size: 8192 or 16384 for good low-frequency resolution
-    // 
-    // Frequency bin = (bin_index * sample_rate) / fft_size
-    // 
-    // Sum energy (magnitude squared) in each band:
-    // - midHigh: 10000-15000 Hz
-    // - high: 15000-20000 Hz  
-    // - upper: 17000-20000 Hz
-    //
-    // Convert to dB: 10 * log10(energy)
-    // Compare dropoffs between bands
-}
-```
-
-### CLI Interface (cmd/mp3detective/main.go)
+## Usage
 
 ```
-mp3detective [flags] <path>
+losselot [OPTIONS] <PATH>
 
-Flags:
-  -o, --output FILE    Output report file (.html, .csv, .json)
-  -j, --jobs INT       Parallel workers (default: NumCPU)
-  -v, --verbose        Show detailed analysis
-  -q, --quiet          Only show summary
-  --no-spectral        Skip spectral analysis (faster, binary-only)
-  --threshold INT      Transcode threshold percentage (default: 65)
-  -h, --help           Show help
+Arguments:
+  <PATH>  File or directory to analyze
 
-Examples:
-  mp3detective ~/Music/
-  mp3detective -o report.html -j 8 ~/Music/
-  mp3detective --no-spectral suspicious_file.mp3
+Options:
+  -o, --output <FILE>      Output report file (.html, .csv, .json)
+  -j, --jobs <NUM>         Number of parallel workers (default: CPU count)
+      --no-spectral        Skip spectral analysis (faster, binary-only)
+  -v, --verbose            Show detailed analysis
+  -q, --quiet              Only show summary
+      --threshold <NUM>    Transcode threshold percentage [default: 65]
+  -h, --help               Print help
+  -V, --version            Print version
 ```
 
-### Cross-Compilation (Makefile)
+### Examples
 
-```makefile
-BINARY=mp3detective
-VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-LDFLAGS=-ldflags "-X main.Version=$(VERSION) -s -w"
+```bash
+# Analyze a single file
+losselot suspicious.mp3
 
-.PHONY: all clean darwin-amd64 darwin-arm64 linux-amd64 windows-amd64
+# Analyze entire music library
+losselot ~/Music/
 
-all: darwin-amd64 darwin-arm64 linux-amd64 windows-amd64
+# Generate HTML report
+losselot -o report.html ~/Music/
 
-darwin-amd64:
-	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-darwin-amd64 ./cmd/mp3detective
+# Quick scan (binary-only, no FFT)
+losselot --no-spectral ~/Music/
 
-darwin-arm64:
-	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o dist/$(BINARY)-darwin-arm64 ./cmd/mp3detective
-
-linux-amd64:
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-linux-amd64 ./cmd/mp3detective
-
-windows-amd64:
-	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-windows-amd64.exe ./cmd/mp3detective
-
-clean:
-	rm -rf dist/
+# Parallel processing with 8 workers
+losselot -j 8 ~/Music/
 ```
 
-## Dependencies
+### Exit Codes
 
-Minimize external deps. Suggested:
+- `0`: All files clean
+- `1`: Some files suspect
+- `2`: Transcodes detected
 
-```go
-require (
-    github.com/spf13/cobra v1.8.0        // CLI framework (optional, can use flag)
-    github.com/mjibson/go-dsp v0.0.0     // FFT implementation (or write pure Go)
-    github.com/schollz/progressbar/v3    // Progress bar (optional)
-)
-```
+## Report Formats
 
-Or go fully stdlib - the FFT can be implemented in ~100 lines.
-
-## HTML Report Template
-
-Embed this CSS/HTML template in the binary using `//go:embed`. The reference bash script has the full HTML template with:
-- Dark mode UI
-- Color-coded verdict badges
+### HTML
+Beautiful dark-mode report with:
+- Summary statistics
+- Color-coded verdicts
 - Score progress bars
-- Sortable table
 - Flag reference legend
 
-## Testing Strategy
+### CSV
+```csv
+verdict,filepath,bitrate_kbps,combined_score,spectral_score,binary_score,flags,encoder,lowpass
+TRANSCODE,/path/to/file.mp3,320,85,45,40,lowpass_mismatch(16000Hz),LAME3.100,16000
+```
 
-1. Create test fixtures:
-   - Legitimate high-bitrate MP3 (encode from WAV at 320kbps)
-   - Obvious transcode (decode that 320, re-encode at 320)
-   - Upconvert (128kbps source → 320kbps)
-   
-2. Unit tests for frame parser, LAME header extraction
-3. Integration tests comparing output to reference bash implementation
+### JSON
+```json
+{
+  "generated": "2024-01-01T00:00:00Z",
+  "summary": {"total": 100, "ok": 85, "suspect": 10, "transcode": 5},
+  "files": [...]
+}
+```
 
-## Notes for Implementation
+## Flags Reference
 
-1. **Binary analysis works without ffmpeg** - useful for quick scans or systems without ffmpeg
-2. **Spectral analysis is more accurate** but needs ffmpeg installed
-3. **The `--no-spectral` flag** lets users choose speed vs accuracy
-4. **Lowpass mismatch is the smoking gun** - if you find this, it's definitely a transcode
-5. **Multiple encoder signatures** are suspicious but not definitive (could be re-tagged)
-6. **Frame size variance** is a weak signal, weight it lower
+| Flag | Meaning |
+|------|---------|
+| `lowpass_mismatch` | LAME header lowpass frequency doesn't match declared bitrate (smoking gun!) |
+| `multi_encoder_sigs` | Multiple encoder signatures found in file |
+| `irregular_frames` | CBR frame sizes are inconsistent |
+| `steep_hf_rolloff` | High frequencies drop off too sharply |
+| `dead_upper_band` | 17-20kHz range has almost no energy |
+| `silent_17k+` | Upper frequencies are essentially silent |
 
-## Deliverables
+## How Transcoding Detection Works
 
-1. Working Go binary that matches the bash script's detection logic
-2. Cross-platform builds (darwin-amd64, darwin-arm64, linux-amd64, windows-amd64)
-3. HTML/CSV/JSON report generation
-4. README with installation and usage instructions
-5. MIT license
+When you encode audio to MP3, the encoder applies a lowpass filter based on the bitrate:
+- 320kbps → ~20.5kHz lowpass
+- 256kbps → ~20kHz lowpass
+- 192kbps → ~18.5kHz lowpass
+- 128kbps → ~16kHz lowpass
 
----
+**The LAME encoder writes this lowpass frequency into a header field.**
 
-That's the full spec. Start with the MP3 parser since that's the foundation, then build up to the analyzer, then CLI, then reports.
+If someone takes a 128kbps MP3 and re-encodes it at 320kbps:
+- The file claims to be 320kbps
+- But the LAME header still says lowpass=16000Hz
+- And the spectral analysis shows no energy above 16kHz
+
+This is the "smoking gun" that Losselot looks for.
+
+## Building
+
+```bash
+# Debug build
+cargo build
+
+# Release build
+cargo build --release
+
+# Run tests
+cargo test
+```
+
+### Cross-compilation
+
+The GitHub Actions workflow builds for all platforms automatically on release tags.
+
+For manual cross-compilation:
+```bash
+# macOS (both architectures)
+cargo build --release --target x86_64-apple-darwin
+cargo build --release --target aarch64-apple-darwin
+
+# Requires cross or appropriate toolchain
+cross build --release --target x86_64-unknown-linux-gnu
+cross build --release --target x86_64-pc-windows-gnu
+```
+
+## License
+
+MIT

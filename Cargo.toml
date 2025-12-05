@@ -1,0 +1,35 @@
+[package]
+name = "losselot"
+version = "0.1.0"
+edition = "2021"
+description = "Detect MP3s transcoded from lower quality sources"
+license = "MIT"
+repository = "https://github.com/notactuallytreyanastasio/losselot"
+
+[dependencies]
+# Audio decoding
+symphonia = { version = "0.5", features = ["mp3"] }
+
+# FFT for spectral analysis
+rustfft = "6.2"
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
+# Serialization for reports
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# File system traversal
+walkdir = "2.4"
+
+# Parallel processing
+rayon = "1.8"
+
+# Progress indication
+indicatif = "0.17"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
