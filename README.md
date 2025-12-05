@@ -8,6 +8,20 @@ Ever downloaded a FLAC or WAV and wondered if it's the real deal, or just an MP3
 
 ---
 
+## Encoding Chain Detection
+
+**Catch files that have been re-encoded multiple times.** Even if someone "upgraded" a 128kbps MP3 to 320kbps and then to FLAC, Losselot traces the damage back to its source.
+
+![Encoding Chain Panel](docs/d1.png)
+
+Losselot reconstructs the encoding history by scanning for encoder signatures (LAME, FFmpeg, Fraunhofer, etc.) and combining that with spectral analysis. When intermediate codecs don't leave signatures (like AAC or OGG), spectral damage still reveals the chain:
+
+![Encoding Chain Modal](docs/d4.png)
+
+Each lossy pass destroys quality permanently. The visualization shows exactly how many times a file has been through the lossy wringer - and estimates how much quality remains.
+
+---
+
 ## Download
 
 | Platform | Download | Notes |

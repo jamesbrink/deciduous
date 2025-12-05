@@ -2,9 +2,13 @@
 name = "losselot"
 version = "0.2.0"
 edition = "2021"
-description = "Detect MP3s transcoded from lower quality sources"
+description = "Detect fake lossless audio files and re-encoding chains"
 license = "MIT"
 repository = "https://github.com/notactuallytreyanastasio/losselot"
+homepage = "https://github.com/notactuallytreyanastasio/losselot"
+readme = "README.md"
+keywords = ["audio", "mp3", "flac", "spectral-analysis", "transcoding"]
+categories = ["command-line-utilities", "multimedia::audio"]
 
 [features]
 default = ["gui"]
