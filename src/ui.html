@@ -109,6 +109,245 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
+    // ============================================================================
+    // TYPE DEFINITIONS
+    // ============================================================================
+    // These mirror the Rust types in src/analyzer/*.rs and src/serve.rs
+    // Using JSDoc for IDE support without TypeScript compilation
+    // ============================================================================
+
+    /**
+     * @typedef {'OK' | 'SUSPECT' | 'TRANSCODE' | 'ERROR'} Verdict
+     * Enum matching Rust's Verdict - determines file classification
+     * OK: Score 0-34, appears genuine
+     * SUSPECT: Score 35-64, some indicators
+     * TRANSCODE: Score 65-100, strong evidence of fake
+     * ERROR: Analysis failed
+     */
+
+    /**
+     * @typedef {Object} Summary
+     * Aggregate counts for a batch of analyzed files
+     * @property {number} total - Total files analyzed
+     * @property {number} ok - Files with OK verdict
+     * @property {number} suspect - Files with SUSPECT verdict
+     * @property {number} transcode - Files with TRANSCODE verdict
+     * @property {number} error - Files that failed to analyze
+     */
+
+    /**
+     * @typedef {Object} AnalyzeParams
+     * Request parameters for analysis
+     * @property {string} path - Path to file or directory
+     * @property {number} threshold - Transcode threshold (default: 65)
+     * @property {number} suspect_threshold - Suspect threshold (default: 35)
+     * @property {boolean} skip_spectral - Skip FFT analysis (faster but less accurate)
+     */
+
+    /**
+     * @typedef {Object} SpectrogramData
+     * 2D frequency/time magnitude data for visualization
+     * @property {number[]} times - Time points in seconds (x-axis)
+     * @property {number[]} frequencies - Frequency bins in Hz (y-axis, 0 to ~22kHz)
+     * @property {number[]} magnitudes - Flattened [time][freq] array in dB
+     *                                   Access: magnitudes[time_idx * num_freq_bins + freq_idx]
+     * @property {number} num_freq_bins - Number of frequency bins (height)
+     * @property {number} num_time_slices - Number of time slices (width)
+     */
+
+    /**
+     * @typedef {Object} StereoCorrelation
+     * L/R channel similarity over time
+     * @property {number[]} times - Time points in seconds
+     * @property {number[]} correlations - Correlation at each point (-1.0 to 1.0)
+     *                                     1.0 = mono, 0.0 = uncorrelated, -1.0 = inverted
+     * @property {number} avg_correlation - Average across file
+     * @property {number} min_correlation - Minimum (most stereo separation)
+     * @property {number} max_correlation - Maximum (least separation)
+     * @property {boolean} is_stereo - True if stereo source
+     * @property {number} channel_count - Number of channels (1=mono, 2=stereo)
+     */
+
+    /**
+     * @typedef {Object} SpectralDetails
+     * FFT-based frequency analysis results
+     * @property {number} rms_full - RMS level of full signal (dB)
+     * @property {number} rms_mid_high - RMS of 10-15kHz band (dB)
+     * @property {number} rms_high - RMS of 15-20kHz band (dB)
+     * @property {number} rms_upper - RMS of 17-20kHz band (dB)
+     * @property {number} rms_19_20k - RMS of 19-20kHz band (dB)
+     * @property {number} rms_ultrasonic - RMS of 20-22kHz band (dB) - key for 320k detection
+     * @property {number} high_drop - Drop from full to high band (dB)
+     * @property {number} upper_drop - Drop from mid-high to upper band (dB)
+     * @property {number} ultrasonic_drop - Drop from 19-20kHz to 20-22kHz (dB)
+     * @property {number} ultrasonic_flatness - Spectral flatness 19-21kHz (1.0=noise, 0.0=empty)
+     * @property {SpectrogramData} [spectrogram] - Visualization data (optional)
+     * @property {StereoCorrelation} [stereo_correlation] - Stereo analysis (optional)
+     */
+
+    /**
+     * @typedef {Object} BitrateTimeline
+     * Per-frame bitrate data for VBR visualization
+     * @property {number[]} times - Time points in seconds
+     * @property {number[]} bitrates - Bitrate in kbps at each frame
+     * @property {boolean} is_vbr - True if variable bitrate
+     * @property {number} min_bitrate - Minimum bitrate seen
+     * @property {number} max_bitrate - Maximum bitrate seen
+     * @property {number} avg_bitrate - Average bitrate
+     */
+
+    /**
+     * @typedef {Object} BinaryDetails
+     * MP3 header/metadata analysis results
+     * @property {number} [lowpass] - Detected lowpass filter frequency (Hz)
+     * @property {number} [expected_lowpass] - Expected lowpass for this bitrate
+     * @property {string} [encoder_version] - Detected encoder version string
+     * @property {number} encoder_count - Number of encoder signatures found
+     * @property {number} frame_size_cv - Frame size coefficient of variation (%)
+     * @property {boolean} is_vbr - True if VBR detected
+     * @property {number} [total_frames] - Total frame count
+     * @property {number} lame_occurrences - LAME signature count (>1 = re-encoded)
+     * @property {number} ffmpeg_occurrences - FFmpeg/Lavf signature count
+     * @property {string} [encoding_chain] - Human-readable chain (e.g., "LAME → FFmpeg")
+     * @property {boolean} reencoded - True if re-encoding evidence found
+     * @property {BitrateTimeline} [bitrate_timeline] - Per-frame bitrate data
+     */
+
+    /**
+     * @typedef {Object} AnalysisResult
+     * Complete analysis result for a single file
+     * @property {string} file_path - Full path to file
+     * @property {string} file_name - Filename only
+     * @property {number} bitrate - Detected bitrate (kbps)
+     * @property {number} sample_rate - Sample rate (Hz)
+     * @property {number} duration_secs - Duration in seconds
+     * @property {Verdict} verdict - Classification result
+     * @property {number} combined_score - Overall score 0-100
+     * @property {number} spectral_score - Score from FFT analysis
+     * @property {number} binary_score - Score from header analysis
+     * @property {string[]} flags - Detection flags (e.g., "hf_cutoff_detected")
+     * @property {string} encoder - Detected encoder name
+     * @property {number} [lowpass] - Lowpass filter frequency (Hz)
+     * @property {SpectralDetails} [spectral_details] - Detailed spectral data
+     * @property {BinaryDetails} [binary_details] - Detailed binary data
+     * @property {string} [error] - Error message if analysis failed
+     */
+
+    /**
+     * @typedef {Object} AnalysisReport
+     * Complete API response with all results
+     * @property {string} generated - ISO timestamp of report generation
+     * @property {Summary} summary - Aggregate counts
+     * @property {AnalysisResult[]} files - Individual file results
+     * @property {AnalyzeParams} params - Parameters used for analysis
+     */
+
+    /**
+     * @typedef {Object} ApiResponse
+     * Wrapper for all API responses
+     * @template T
+     * @property {boolean} ok - True if request succeeded
+     * @property {T} [data] - Response payload on success
+     * @property {string} [error] - Error message on failure
+     */
+
+    // ============================================================================
+    // CONSTANTS
+    // ============================================================================
+
+    /** Threshold in dB for upper frequency drop to trigger warning */
+    const UPPER_DROP_THRESHOLD = 15;
+
+    /** Threshold in dB for ultrasonic drop to trigger warning */
+    const ULTRASONIC_DROP_THRESHOLD = 25;
+
+    /** Quality loss estimate per lossy encoding pass (%) */
+    const QUALITY_LOSS_PER_PASS = 15;
+
+    /** Correlation threshold for mono/near-mono detection */
+    const MONO_CORRELATION_THRESHOLD = 0.95;
+
+    /** Correlation threshold for normal vs wide stereo */
+    const WIDE_STEREO_THRESHOLD = 0.7;
+
+    // ============================================================================
+    // UTILITY FUNCTIONS
+    // ============================================================================
+
+    /**
+     * Determine stereo type from average correlation
+     * @param {number} avgCorrelation
+     * @returns {string}
+     */
+    const getStereoType = (avgCorrelation) => {
+      if (avgCorrelation > MONO_CORRELATION_THRESHOLD) return 'Mono/Near-Mono';
+      if (avgCorrelation > WIDE_STEREO_THRESHOLD) return 'Normal Stereo';
+      return 'Wide Stereo';
+    };
+
+    /**
+     * Check if file has spectral evidence of transcoding
+     * @param {SpectralDetails} spectral
+     * @returns {boolean}
+     */
+    const hasSpectralEvidence = (spectral) => {
+      if (!spectral) return false;
+      return spectral.upper_drop > UPPER_DROP_THRESHOLD ||
+             spectral.ultrasonic_drop > ULTRASONIC_DROP_THRESHOLD;
+    };
+
+    /**
+     * Build encoding chain from analysis result
+     * @param {AnalysisResult} file
+     * @returns {{name: string, type: 'source'|'lossy'|'final', quality: string}[]}
+     */
+    const buildEncodingChain = (file) => {
+      const b = file.binary_details;
+      const s = file.spectral_details;
+      const hasBinaryEvidence = b && b.reencoded;
+      const hasSpectral = hasSpectralEvidence(s);
+      const isTranscode = file.verdict === 'TRANSCODE' || file.verdict === 'SUSPECT';
+
+      const chain = [{ name: 'Original', type: 'source', quality: 'Lossless/Unknown' }];
+
+      if (hasBinaryEvidence && b.lame_occurrences > 0) {
+        for (let i = 0; i < b.lame_occurrences; i++) {
+          chain.push({
+            name: i === 0 ? (file.encoder || 'LAME') : 'LAME',
+            type: i === 0 ? 'lossy' : 'final',
+            quality: i === 0 ? 'First lossy encode' : `Pass ${i + 1} - cumulative loss`
+          });
+        }
+        if (b.ffmpeg_occurrences > 0) {
+          for (let i = 0; i < b.ffmpeg_occurrences; i++) {
+            chain.push({ name: 'FFmpeg', type: 'final', quality: `Processing pass ${i + 1}` });
+          }
+        }
+      } else if (hasSpectral || isTranscode) {
+        chain.push({ name: '??? Lossy', type: 'lossy', quality: 'Unknown codec/bitrate' });
+        if (s && s.upper_drop > 25) {
+          chain.push({ name: '??? Lossy', type: 'final', quality: 'Additional encoding suspected' });
+        }
+        chain.push({ name: file.encoder || 'LAME', type: 'final', quality: `Final encode (${file.bitrate}kbps)` });
+      }
+
+      return chain;
+    };
+
+    /**
+     * Calculate estimated quality retention
+     * @param {{type: string}[]} chain
+     * @returns {number} Percentage 0-100
+     */
+    const calculateQualityRetention = (chain) => {
+      const lossyPasses = chain.filter(c => c.type !== 'source').length;
+      return Math.max(0, 100 - (lossyPasses * QUALITY_LOSS_PER_PASS));
+    };
+
+    // ============================================================================
+    // COMPONENTS
+    // ============================================================================
+
     function App() {
       const [data, setData] = useState(null);
       const [selected, setSelected] = useState(null);
@@ -254,41 +493,25 @@
       );
     }
 
+    /**
+     * Encoding chain visualization component
+     * Shows the detected re-encoding history with quality retention estimate
+     * @param {{ file: AnalysisResult }} props
+     */
     function EncodingChain({ file }) {
       const b = file.binary_details;
       const s = file.spectral_details;
-      const hasSpectralEvidence = s && (s.upper_drop > 15 || s.ultrasonic_drop > 25);
+      const spectralEvidence = hasSpectralEvidence(s);
       const hasBinaryEvidence = b && b.reencoded;
-      const isTranscode = file.verdict === 'Transcode' || file.verdict === 'Suspect';
+      const isTranscode = file.verdict === 'TRANSCODE' || file.verdict === 'SUSPECT';
 
-      if (!hasBinaryEvidence && !hasSpectralEvidence && !isTranscode) return null;
+      // Only show for files with evidence
+      if (!hasBinaryEvidence && !spectralEvidence && !isTranscode) return null;
 
-      // Build encoding chain
-      const chain = [{ name: 'Original', type: 'source', quality: 'Lossless/Unknown' }];
-
-      if (hasBinaryEvidence && b.lame_occurrences > 0) {
-        for (let i = 0; i < b.lame_occurrences; i++) {
-          chain.push({
-            name: i === 0 ? (file.encoder || 'LAME') : 'LAME',
-            type: i === 0 ? 'lossy' : 'final',
-            quality: i === 0 ? 'First lossy encode' : `Pass ${i + 1} - cumulative loss`
-          });
-        }
-        if (b.ffmpeg_occurrences > 0) {
-          for (let i = 0; i < b.ffmpeg_occurrences; i++) {
-            chain.push({ name: 'FFmpeg', type: 'final', quality: `Processing pass ${i + 1}` });
-          }
-        }
-      } else if (hasSpectralEvidence || isTranscode) {
-        chain.push({ name: '??? Lossy', type: 'lossy', quality: 'Unknown codec/bitrate' });
-        if (s && s.upper_drop > 25) {
-          chain.push({ name: '??? Lossy', type: 'final', quality: 'Additional encoding suspected' });
-        }
-        chain.push({ name: file.encoder || 'LAME', type: 'final', quality: `Final encode (${file.bitrate}kbps)` });
-      }
-
+      // Use utility functions
+      const chain = buildEncodingChain(file);
+      const qualityEstimate = calculateQualityRetention(chain);
       const lossyPasses = chain.filter(c => c.type !== 'source').length;
-      const qualityEstimate = Math.max(0, 100 - (lossyPasses * 15));
 
       const Arrow = () => (
         <svg viewBox="0 0 32 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -349,9 +572,13 @@
       );
     }
 
+    /**
+     * Warning panel for detected spectral issues
+     * @param {{ file: AnalysisResult }} props
+     */
     function IssuesDetected({ file }) {
       const s = file.spectral_details;
-      if (!s || (s.upper_drop <= 15 && s.ultrasonic_drop <= 25)) return null;
+      if (!hasSpectralEvidence(s)) return null;
 
       return (
         <div className="issues-detected">
@@ -359,8 +586,12 @@
             <span>⚠️</span> Issues Detected
           </div>
           <div className="issues-detected-detail">
-            {s.upper_drop > 15 && <div>Upper drop: {s.upper_drop.toFixed(1)} dB</div>}
-            {s.ultrasonic_drop > 25 && <div>Ultrasonic drop: {s.ultrasonic_drop.toFixed(1)} dB</div>}
+            {s.upper_drop > UPPER_DROP_THRESHOLD && (
+              <div>Upper drop: {s.upper_drop.toFixed(1)} dB (threshold: {UPPER_DROP_THRESHOLD} dB)</div>
+            )}
+            {s.ultrasonic_drop > ULTRASONIC_DROP_THRESHOLD && (
+              <div>Ultrasonic drop: {s.ultrasonic_drop.toFixed(1)} dB (threshold: {ULTRASONIC_DROP_THRESHOLD} dB)</div>
+            )}
           </div>
         </div>
       );
@@ -653,7 +884,7 @@
         ctx.textAlign = 'left';
         ctx.fillStyle = '#4caf50';
         ctx.font = 'bold 20px system-ui';
-        const stereoType = avg_correlation > 0.95 ? 'Mono/Near-Mono' : avg_correlation > 0.7 ? 'Normal Stereo' : 'Wide Stereo';
+        const stereoType = getStereoType(avg_correlation);
         ctx.fillText(stereoType, pad.left + 10, pad.top + 18);
 
         ctx.textAlign = 'right';
