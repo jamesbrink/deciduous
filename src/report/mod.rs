@@ -1,3 +1,22 @@
+//! Report generation for analysis results
+//!
+//! This module provides output formatters for analysis results in multiple formats:
+//!
+//! - **HTML**: Interactive report with D3.js visualizations (spectral waterfall, charts)
+//! - **JSON**: Machine-readable format for programmatic consumption
+//! - **CSV**: Spreadsheet-compatible format for bulk analysis
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use losselot::report;
+//!
+//! // Automatically picks format based on extension
+//! report::generate("report.html", &results)?;  // HTML
+//! report::generate("report.json", &results)?;  // JSON
+//! report::generate("report.csv", &results)?;   // CSV
+//! ```
+
 pub mod csv;
 pub mod html;
 pub mod json;
@@ -49,5 +68,109 @@ impl Summary {
         }
 
         summary
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analyzer::Verdict;
+
+    // ==========================================================================
+    // SUMMARY STATISTICS TESTS
+    // ==========================================================================
+    //
+    // The Summary struct aggregates verdict counts for a batch of files.
+    // This is displayed at the top of reports to give an overview.
+    // ==========================================================================
+
+    fn create_test_result(verdict: Verdict) -> AnalysisResult {
+        AnalysisResult {
+            file_path: "/test/file.mp3".to_string(),
+            file_name: "file.mp3".to_string(),
+            bitrate: 320,
+            sample_rate: 44100,
+            duration_secs: 180.0,
+            verdict,
+            combined_score: 0,
+            spectral_score: 0,
+            binary_score: 0,
+            flags: vec![],
+            encoder: "LAME".to_string(),
+            lowpass: None,
+            spectral_details: None,
+            binary_details: None,
+            error: None,
+        }
+    }
+
+    #[test]
+    fn test_summary_empty() {
+        let results: Vec<AnalysisResult> = vec![];
+        let summary = Summary::from_results(&results);
+
+        assert_eq!(summary.total, 0);
+        assert_eq!(summary.ok, 0);
+        assert_eq!(summary.suspect, 0);
+        assert_eq!(summary.transcode, 0);
+        assert_eq!(summary.error, 0);
+    }
+
+    #[test]
+    fn test_summary_all_ok() {
+        let results = vec![
+            create_test_result(Verdict::Ok),
+            create_test_result(Verdict::Ok),
+            create_test_result(Verdict::Ok),
+        ];
+        let summary = Summary::from_results(&results);
+
+        assert_eq!(summary.total, 3);
+        assert_eq!(summary.ok, 3);
+        assert_eq!(summary.suspect, 0);
+        assert_eq!(summary.transcode, 0);
+    }
+
+    #[test]
+    fn test_summary_mixed() {
+        let results = vec![
+            create_test_result(Verdict::Ok),
+            create_test_result(Verdict::Ok),
+            create_test_result(Verdict::Suspect),
+            create_test_result(Verdict::Transcode),
+            create_test_result(Verdict::Error),
+        ];
+        let summary = Summary::from_results(&results);
+
+        assert_eq!(summary.total, 5);
+        assert_eq!(summary.ok, 2);
+        assert_eq!(summary.suspect, 1);
+        assert_eq!(summary.transcode, 1);
+        assert_eq!(summary.error, 1);
+    }
+
+    #[test]
+    fn test_summary_all_transcodes() {
+        // Worst case: entire library is fake
+        let results = vec![
+            create_test_result(Verdict::Transcode),
+            create_test_result(Verdict::Transcode),
+        ];
+        let summary = Summary::from_results(&results);
+
+        assert_eq!(summary.total, 2);
+        assert_eq!(summary.ok, 0);
+        assert_eq!(summary.transcode, 2);
+    }
+
+    #[test]
+    fn test_summary_default() {
+        let summary = Summary::default();
+
+        assert_eq!(summary.total, 0);
+        assert_eq!(summary.ok, 0);
+        assert_eq!(summary.suspect, 0);
+        assert_eq!(summary.transcode, 0);
+        assert_eq!(summary.error, 0);
     }
 }

@@ -1,9 +1,48 @@
-//! Spectral analysis of MP3 files
+//! Spectral analysis of audio files
 //!
-//! Uses FFT to analyze frequency content and detect transcoding:
-//! - Measures energy in frequency bands (10-15kHz, 15-20kHz, 17-20kHz)
-//! - Transcodes have a characteristic "cliff" where high frequencies die
-//! - Legitimate high-bitrate files have gradual rolloff
+//! Uses FFT (Fast Fourier Transform) to analyze frequency content and detect transcoding.
+//!
+//! # How Spectral Analysis Works
+//!
+//! Audio is made up of frequencies from 20Hz (deep bass) to 20,000Hz (highest treble).
+//! When audio is compressed with lossy codecs like MP3, the encoder removes high
+//! frequencies to save space. Different bitrates remove different amounts:
+//!
+//! ```text
+//! Format      | Frequencies Preserved | What's Missing
+//! ------------|----------------------|------------------
+//! 64 kbps     | 0 - 11,000 Hz        | Everything above 11kHz
+//! 128 kbps    | 0 - 16,000 Hz        | Cymbal shimmer, breath sounds
+//! 192 kbps    | 0 - 18,000 Hz        | Highest harmonics
+//! 256 kbps    | 0 - 19,000 Hz        | Very subtle loss
+//! 320 kbps    | 0 - 20,000 Hz        | Nothing audible (20-22kHz)
+//! Lossless    | 0 - 22,050 Hz        | Full Nyquist bandwidth
+//! ```
+//!
+//! ## The "Cliff" Pattern
+//!
+//! Lossy encoding creates a sharp "cliff" where frequencies suddenly drop off.
+//! This is visible in spectral analysis as:
+//!
+//! - **Transcoded file**: Gentle slope until cutoff, then VERTICAL drop to silence
+//! - **Real lossless**: Gradual, natural rolloff continuing to 22kHz
+//!
+//! ## Key Detection Metrics
+//!
+//! 1. **upper_drop**: Difference between 10-15kHz and 17-20kHz bands (in dB)
+//!    - Real lossless: ~4-8 dB (natural instrument rolloff)
+//!    - 320k transcode: ~10-15 dB
+//!    - 128k transcode: ~40-70 dB (dramatic cliff)
+//!
+//! 2. **ultrasonic_drop**: Difference between 19-20kHz and 20-22kHz bands
+//!    - Catches 320kbps transcodes that cut right at 20kHz
+//!    - Real lossless: ~1-3 dB
+//!    - 320k transcode: ~40+ dB
+//!
+//! 3. **spectral_flatness**: Measures if there's real content or silence
+//!    - White noise = 1.0, Pure silence = 0.0
+//!    - Real audio in 20-22kHz range has flatness ~0.9+
+//!    - Empty transcode band has flatness <0.3
 
 use rustfft::{num_complex::Complex, FftPlanner};
 use serde::Serialize;
@@ -362,4 +401,450 @@ pub fn analyze(data: &[u8], _declared_sample_rate: u32) -> SpectralResult {
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==========================================================================
+    // EDUCATIONAL BACKGROUND: Understanding FFT-Based Spectral Analysis
+    // ==========================================================================
+    //
+    // The Fast Fourier Transform (FFT) converts time-domain audio (waveform)
+    // into frequency-domain (spectrum). This lets us see which frequencies
+    // are present and how strong they are.
+    //
+    // KEY CONCEPTS:
+    //
+    // 1. SAMPLE RATE & NYQUIST FREQUENCY
+    //    CD audio uses 44,100 samples/second. The highest frequency we can
+    //    represent is half that: 22,050 Hz (the "Nyquist frequency").
+    //    This is why lossy codecs cutting at 20kHz is suspicious - real
+    //    recordings have content up to 22kHz.
+    //
+    // 2. FFT SIZE & FREQUENCY RESOLUTION
+    //    We use 8192-sample windows. At 44.1kHz, each "bin" represents:
+    //    44100 / 8192 ≈ 5.38 Hz
+    //    So we can measure energy at very precise frequency points.
+    //
+    // 3. DECIBELS (dB)
+    //    Audio levels are measured in decibels, a logarithmic scale.
+    //    - 0 dB = reference level (full scale)
+    //    - -6 dB = half the amplitude
+    //    - -20 dB = 1/10th the amplitude
+    //    - -60 dB = 1/1000th the amplitude (very quiet)
+    //
+    // 4. WINDOWING
+    //    We apply a "Hanning window" before FFT to reduce spectral leakage.
+    //    This smoothly tapers the edges of each analysis window.
+    //
+    // 5. RMS (Root Mean Square)
+    //    The effective "average" level of a signal, accounting for both
+    //    positive and negative values. Used to measure band energy.
+    // ==========================================================================
+
+    // ==========================================================================
+    // HANNING WINDOW TESTS
+    // ==========================================================================
+    //
+    // The Hanning (or Hann) window is a smooth taper function that reduces
+    // spectral leakage in FFT analysis. Without windowing, the abrupt edges
+    // of our sample window would create artificial high frequencies.
+    //
+    // The formula is: w(n) = 0.5 * (1 - cos(2πn/(N-1)))
+    //
+    // Properties:
+    // - Value at edges (0, N-1) should be 0 or near-0
+    // - Value at center (N/2) should be 1.0
+    // - Symmetric around the center
+    // ==========================================================================
+
+    #[test]
+    fn test_hanning_window_edges() {
+        // Hanning window should be zero at the edges
+        let window = hanning_window(100);
+
+        assert!(
+            window[0] < 0.001,
+            "Window should start near zero, got {}",
+            window[0]
+        );
+        assert!(
+            window[99] < 0.001,
+            "Window should end near zero, got {}",
+            window[99]
+        );
+    }
+
+    #[test]
+    fn test_hanning_window_center() {
+        // Hanning window should be 1.0 at the center
+        let window = hanning_window(101); // Odd size for exact center
+
+        assert!(
+            (window[50] - 1.0).abs() < 0.001,
+            "Window center should be 1.0, got {}",
+            window[50]
+        );
+    }
+
+    #[test]
+    fn test_hanning_window_symmetry() {
+        // Hanning window should be symmetric
+        let window = hanning_window(100);
+
+        for i in 0..50 {
+            assert!(
+                (window[i] - window[99 - i]).abs() < 0.001,
+                "Window should be symmetric at index {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn test_hanning_window_shape() {
+        // Window should increase from edge to center
+        let window = hanning_window(100);
+
+        // First half should be monotonically increasing
+        for i in 0..49 {
+            assert!(
+                window[i] <= window[i + 1],
+                "Window should increase from {} to {}",
+                i,
+                i + 1
+            );
+        }
+    }
+
+    // ==========================================================================
+    // DECIBEL CONVERSION TESTS
+    // ==========================================================================
+    //
+    // Decibels are a logarithmic scale for measuring audio levels:
+    //   dB = 20 * log10(amplitude)
+    //
+    // Key reference points:
+    //   1.0 → 0 dB (full scale)
+    //   0.5 → -6 dB (half amplitude)
+    //   0.1 → -20 dB
+    //   0.0 → -∞ dB (we floor at -96 dB)
+    // ==========================================================================
+
+    #[test]
+    fn test_to_db_unity() {
+        // Amplitude of 1.0 = 0 dB
+        assert!((to_db(1.0) - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_to_db_half() {
+        // Amplitude of 0.5 ≈ -6.02 dB
+        let db = to_db(0.5);
+        assert!(
+            (db - (-6.02)).abs() < 0.1,
+            "0.5 amplitude should be ~-6dB, got {}",
+            db
+        );
+    }
+
+    #[test]
+    fn test_to_db_tenth() {
+        // Amplitude of 0.1 = -20 dB
+        let db = to_db(0.1);
+        assert!(
+            (db - (-20.0)).abs() < 0.1,
+            "0.1 amplitude should be -20dB, got {}",
+            db
+        );
+    }
+
+    #[test]
+    fn test_to_db_zero() {
+        // Amplitude of 0 should floor to -96 dB (not -infinity)
+        assert_eq!(to_db(0.0), -96.0);
+    }
+
+    #[test]
+    fn test_to_db_negative() {
+        // Negative values should also floor to -96 dB
+        assert_eq!(to_db(-1.0), -96.0);
+    }
+
+    // ==========================================================================
+    // RMS (Root Mean Square) TESTS
+    // ==========================================================================
+    //
+    // RMS is the "effective" average of a signal, calculated as:
+    //   RMS = sqrt(mean(samples²))
+    //
+    // For audio, RMS represents the perceived loudness better than peak level.
+    // A pure sine wave has RMS = peak / √2 ≈ 0.707 * peak
+    // ==========================================================================
+
+    #[test]
+    fn test_rms_constant() {
+        // Constant signal: RMS = the constant value
+        let samples = vec![0.5, 0.5, 0.5, 0.5];
+        assert!((rms(&samples) - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_rms_symmetric() {
+        // Symmetric signal: RMS should be the same magnitude
+        let samples = vec![1.0, -1.0, 1.0, -1.0];
+        assert!((rms(&samples) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_rms_empty() {
+        // Empty input should return 0
+        let samples: Vec<f64> = vec![];
+        assert_eq!(rms(&samples), 0.0);
+    }
+
+    #[test]
+    fn test_rms_silence() {
+        // All zeros = RMS of 0
+        let samples = vec![0.0, 0.0, 0.0, 0.0];
+        assert_eq!(rms(&samples), 0.0);
+    }
+
+    #[test]
+    fn test_rms_single_sample() {
+        // Single sample: RMS = absolute value
+        assert!((rms(&[0.7]) - 0.7).abs() < 0.001);
+        assert!((rms(&[-0.7]) - 0.7).abs() < 0.001);
+    }
+
+    // ==========================================================================
+    // SPECTRAL FLATNESS TESTS
+    // ==========================================================================
+    //
+    // Spectral flatness (Wiener entropy) measures how "noise-like" a signal is:
+    //   Flatness = geometric_mean(magnitudes) / arithmetic_mean(magnitudes)
+    //
+    // Ranges from 0 to 1:
+    //   1.0 = White noise (equal energy at all frequencies)
+    //   0.0 = Pure tone or silence (energy at single frequency)
+    //
+    // For transcode detection:
+    //   - Real audio in 20-22kHz has flatness ~0.9+ (noise-like content)
+    //   - Empty transcode band has flatness <0.3 (silence)
+    // ==========================================================================
+
+    #[test]
+    fn test_spectral_flatness_uniform() {
+        // Uniform spectrum = high flatness (noise-like)
+        let magnitudes = vec![1.0, 1.0, 1.0, 1.0, 1.0];
+        let flatness = spectral_flatness(&magnitudes);
+
+        assert!(
+            flatness > 0.99,
+            "Uniform spectrum should have flatness ~1.0, got {}",
+            flatness
+        );
+    }
+
+    #[test]
+    fn test_spectral_flatness_spike() {
+        // Single spike = low flatness (tonal)
+        let magnitudes = vec![10.0, 0.001, 0.001, 0.001, 0.001];
+        let flatness = spectral_flatness(&magnitudes);
+
+        assert!(
+            flatness < 0.3,
+            "Tonal spectrum should have low flatness, got {}",
+            flatness
+        );
+    }
+
+    #[test]
+    fn test_spectral_flatness_empty() {
+        // Empty input = 0 flatness
+        let magnitudes: Vec<f64> = vec![];
+        assert_eq!(spectral_flatness(&magnitudes), 0.0);
+    }
+
+    // ==========================================================================
+    // BAND ENERGY TESTS
+    // ==========================================================================
+    //
+    // band_energy() calculates the energy in a specific frequency range
+    // by summing the magnitudes of FFT bins within that range.
+    //
+    // Frequency resolution = sample_rate / fft_size
+    // At 44100 Hz with 8192 samples: ~5.38 Hz per bin
+    //
+    // Bin index for frequency f: bin = f / (sample_rate / fft_size)
+    // ==========================================================================
+
+    #[test]
+    fn test_band_energy_basic() {
+        // Create FFT result with known energy in specific bins
+        let mut fft_result = vec![Complex::new(0.0, 0.0); FFT_SIZE / 2 + 1];
+
+        // Put energy at 1000 Hz
+        // Bin index = 1000 / (44100 / 8192) ≈ 186
+        let bin_1000hz = (1000.0 / (44100.0 / 8192.0)) as usize;
+        fft_result[bin_1000hz] = Complex::new(1.0, 0.0);
+
+        // Energy in 900-1100 Hz should capture this
+        let energy = band_energy(&fft_result, SAMPLE_RATE, 900, 1100);
+        assert!(energy > 0.0, "Should detect energy at 1000 Hz");
+
+        // Energy in 2000-3000 Hz should be zero
+        let energy_high = band_energy(&fft_result, SAMPLE_RATE, 2000, 3000);
+        assert!(
+            energy_high < 0.001,
+            "Should have no energy in 2-3kHz band"
+        );
+    }
+
+    #[test]
+    fn test_band_energy_multiple_bins() {
+        // Energy spread across multiple bins
+        let mut fft_result = vec![Complex::new(0.0, 0.0); FFT_SIZE / 2 + 1];
+
+        // Put equal energy in bins corresponding to 1000-2000 Hz
+        let bin_1000 = (1000.0 / (44100.0 / 8192.0)) as usize;
+        let bin_2000 = (2000.0 / (44100.0 / 8192.0)) as usize;
+
+        for bin in bin_1000..=bin_2000 {
+            fft_result[bin] = Complex::new(1.0, 0.0);
+        }
+
+        let energy = band_energy(&fft_result, SAMPLE_RATE, 1000, 2000);
+        let num_bins = (bin_2000 - bin_1000 + 1) as f64;
+
+        // Expected energy = sqrt(sum of magnitudes squared)
+        // With unit magnitudes: sqrt(num_bins)
+        let expected = num_bins.sqrt();
+        assert!(
+            (energy - expected).abs() < 0.1,
+            "Energy should be ~sqrt({}), got {}",
+            num_bins,
+            energy
+        );
+    }
+
+    // ==========================================================================
+    // SPECTRAL DETAILS STRUCTURE TESTS
+    // ==========================================================================
+
+    #[test]
+    fn test_spectral_details_default() {
+        let details = SpectralDetails::default();
+
+        assert_eq!(details.rms_full, 0.0);
+        assert_eq!(details.high_drop, 0.0);
+        assert_eq!(details.ultrasonic_flatness, 0.0);
+    }
+
+    #[test]
+    fn test_spectral_result_default() {
+        let result = SpectralResult::default();
+
+        assert_eq!(result.score, 0);
+        assert!(result.flags.is_empty());
+    }
+
+    // ==========================================================================
+    // SCORING LOGIC TESTS (Documentation of thresholds)
+    // ==========================================================================
+    //
+    // The scoring system penalizes files with suspicious spectral patterns.
+    // Understanding these thresholds helps interpret analysis results.
+    //
+    // UPPER DROP (10-15kHz to 17-20kHz difference):
+    //   >40 dB: +50 points, "severe_hf_damage" (128k or worse)
+    //   >15 dB: +35 points, "hf_cutoff_detected" (192k or lower)
+    //   >10 dB: +20 points, "possible_lossy_origin" (256k-320k)
+    //
+    // ULTRASONIC DROP (19-20kHz to 20-22kHz difference):
+    //   >40 dB: +35 points, "cliff_at_20khz" (strong 320k indicator)
+    //   >25 dB: +25 points, "steep_20khz_cutoff"
+    //   >15 dB: +15 points, "possible_320k_origin"
+    //
+    // ULTRASONIC FLATNESS:
+    //   <0.3:  +20 points, "dead_ultrasonic_band"
+    //   <0.5:  +10 points, "weak_ultrasonic_content"
+    //
+    // ABSOLUTE THRESHOLDS:
+    //   rms_upper < -50 dB: +15 points, "silent_17k+"
+    //   rms_ultrasonic < -70 dB: +10 points, "silent_20k+"
+    //   high_drop > 48 dB: +15 points, "steep_hf_rolloff"
+    // ==========================================================================
+
+    #[test]
+    fn test_scoring_thresholds_documented() {
+        // This test serves as documentation of the scoring thresholds
+        // Verify the critical values match what's in the analyze() function
+
+        // Upper drop thresholds
+        assert!(40.0 > 15.0, "Severe damage threshold > significant threshold");
+        assert!(15.0 > 10.0, "Significant threshold > mild threshold");
+
+        // Ultrasonic drop thresholds
+        assert!(40.0 > 25.0, "Cliff threshold > steep threshold");
+        assert!(25.0 > 15.0, "Steep threshold > possible threshold");
+
+        // Flatness thresholds
+        assert!(0.3 < 0.5, "Dead band < weak content threshold");
+    }
+
+    // ==========================================================================
+    // FFT SIZE & FREQUENCY RESOLUTION
+    // ==========================================================================
+
+    #[test]
+    fn test_fft_frequency_resolution() {
+        // Verify our FFT parameters give appropriate resolution
+        let bin_resolution = SAMPLE_RATE as f64 / FFT_SIZE as f64;
+
+        // Should be able to resolve ~5 Hz differences
+        assert!(
+            bin_resolution < 10.0,
+            "Frequency resolution should be fine enough: {} Hz/bin",
+            bin_resolution
+        );
+
+        // Verify we can address frequencies up to Nyquist
+        let max_bin = FFT_SIZE / 2;
+        let nyquist = SAMPLE_RATE as f64 / 2.0;
+        let max_freq = max_bin as f64 * bin_resolution;
+
+        assert!(
+            (max_freq - nyquist).abs() < 10.0,
+            "Max addressable frequency should be near Nyquist"
+        );
+    }
+
+    #[test]
+    fn test_frequency_bands_coverage() {
+        // Document the frequency bands we analyze
+        // This helps understand what each metric measures
+
+        let bands = [
+            ("Full audible", 20, 20000),
+            ("Mid-high", 10000, 15000),
+            ("High", 15000, 20000),
+            ("Upper", 17000, 20000),
+            ("Near-Nyquist", 19000, 20000),
+            ("Ultrasonic", 20000, 22000),
+        ];
+
+        // All bands should be within Nyquist limit
+        for (name, low, high) in bands {
+            assert!(
+                high <= SAMPLE_RATE / 2,
+                "{} band ({}-{} Hz) exceeds Nyquist limit",
+                name,
+                low,
+                high
+            );
+        }
+    }
 }

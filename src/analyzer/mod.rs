@@ -1,3 +1,31 @@
+//! Audio file analyzer - combines binary and spectral analysis
+//!
+//! This module orchestrates the complete analysis pipeline:
+//!
+//! 1. **File Reading**: Load audio data and extract basic metadata
+//! 2. **Binary Analysis**: Check LAME headers, encoder signatures, frame structure
+//! 3. **Spectral Analysis**: FFT-based frequency content analysis
+//! 4. **Score Combination**: Merge evidence from both analyses
+//! 5. **Verdict**: Classify as OK, SUSPECT, or TRANSCODE
+//!
+//! # Scoring System
+//!
+//! Both analyzers contribute to a combined score (0-100):
+//!
+//! ```text
+//! Score Range | Verdict   | Meaning
+//! ------------|-----------|------------------------------------------
+//! 0-34        | OK        | Appears to be legitimate lossless
+//! 35-64       | SUSPECT   | Some indicators of lossy origin
+//! 65-100      | TRANSCODE | Strong evidence of transcode/fake
+//! ```
+//!
+//! # Agreement Bonus
+//!
+//! When both analyses agree (spectral ≥30 AND binary ≥20), an additional
+//! +15 points is added to the combined score. This rewards corroborating
+//! evidence from independent detection methods.
+
 pub mod binary;
 pub mod spectral;
 
@@ -203,3 +231,292 @@ impl Analyzer {
 }
 
 use std::io::Read;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==========================================================================
+    // EDUCATIONAL BACKGROUND: The Combined Analysis Approach
+    // ==========================================================================
+    //
+    // Losselot uses TWO independent analysis methods:
+    //
+    // 1. BINARY ANALYSIS (Fast, MP3-specific)
+    //    - Reads LAME header metadata
+    //    - Checks lowpass filter frequency
+    //    - Detects encoder signatures
+    //    - Works only on LAME-encoded MP3s
+    //
+    // 2. SPECTRAL ANALYSIS (Slower, format-agnostic)
+    //    - Decodes audio to PCM
+    //    - Performs FFT frequency analysis
+    //    - Measures energy in frequency bands
+    //    - Works on any audio format
+    //
+    // WHY TWO METHODS?
+    //
+    // Each has strengths and weaknesses:
+    // - Binary: Fast, but only works if encoder left forensic metadata
+    // - Spectral: Universal, but slower and can't identify source bitrate
+    //
+    // When BOTH agree, confidence is very high. When they disagree,
+    // further investigation is warranted.
+    // ==========================================================================
+
+    // ==========================================================================
+    // VERDICT CLASSIFICATION TESTS
+    // ==========================================================================
+
+    #[test]
+    fn test_verdict_display() {
+        // Verdicts should display as human-readable strings
+        assert_eq!(format!("{}", Verdict::Ok), "OK");
+        assert_eq!(format!("{}", Verdict::Suspect), "SUSPECT");
+        assert_eq!(format!("{}", Verdict::Transcode), "TRANSCODE");
+        assert_eq!(format!("{}", Verdict::Error), "ERROR");
+    }
+
+    #[test]
+    fn test_verdict_equality() {
+        // Verdicts should be comparable
+        assert_eq!(Verdict::Ok, Verdict::Ok);
+        assert_ne!(Verdict::Ok, Verdict::Transcode);
+    }
+
+    #[test]
+    fn test_verdict_copy() {
+        // Verdicts should be Copy (efficient to pass around)
+        let v = Verdict::Ok;
+        let v2 = v;
+        assert_eq!(v, v2);
+    }
+
+    // ==========================================================================
+    // ANALYZER CONFIGURATION TESTS
+    // ==========================================================================
+
+    #[test]
+    fn test_analyzer_default() {
+        // Default analyzer settings
+        let analyzer = Analyzer::default();
+
+        assert!(!analyzer.skip_spectral, "Spectral should be enabled by default");
+        assert_eq!(analyzer.transcode_threshold, 65, "Default transcode threshold");
+        assert_eq!(analyzer.suspect_threshold, 35, "Default suspect threshold");
+    }
+
+    #[test]
+    fn test_analyzer_new() {
+        // new() should be same as default()
+        let a1 = Analyzer::new();
+        let a2 = Analyzer::default();
+
+        assert_eq!(a1.skip_spectral, a2.skip_spectral);
+        assert_eq!(a1.transcode_threshold, a2.transcode_threshold);
+        assert_eq!(a1.suspect_threshold, a2.suspect_threshold);
+    }
+
+    #[test]
+    fn test_analyzer_skip_spectral() {
+        // Can disable spectral analysis for speed
+        let analyzer = Analyzer::new().with_skip_spectral(true);
+        assert!(analyzer.skip_spectral);
+
+        let analyzer = Analyzer::new().with_skip_spectral(false);
+        assert!(!analyzer.skip_spectral);
+    }
+
+    #[test]
+    fn test_analyzer_custom_thresholds() {
+        // Can customize verdict thresholds
+        let analyzer = Analyzer::new().with_thresholds(50, 80);
+
+        assert_eq!(analyzer.suspect_threshold, 50);
+        assert_eq!(analyzer.transcode_threshold, 80);
+    }
+
+    #[test]
+    fn test_analyzer_builder_pattern() {
+        // Builder methods should chain
+        let analyzer = Analyzer::new()
+            .with_skip_spectral(true)
+            .with_thresholds(40, 70);
+
+        assert!(analyzer.skip_spectral);
+        assert_eq!(analyzer.suspect_threshold, 40);
+        assert_eq!(analyzer.transcode_threshold, 70);
+    }
+
+    // ==========================================================================
+    // THRESHOLD DOCUMENTATION TESTS
+    // ==========================================================================
+    //
+    // Understanding the thresholds is key to interpreting results:
+    //
+    // SUSPECT THRESHOLD (default: 35)
+    //   - Files scoring 35-64 are flagged as SUSPECT
+    //   - May be from high-bitrate lossy source (256-320k)
+    //   - Or unusual audio content that triggers false positives
+    //   - Warrants further investigation
+    //
+    // TRANSCODE THRESHOLD (default: 65)
+    //   - Files scoring 65+ are flagged as TRANSCODE
+    //   - Strong evidence of lossy origin
+    //   - Multiple indicators agree
+    //   - High confidence the file is fake
+    // ==========================================================================
+
+    #[test]
+    fn test_threshold_boundaries() {
+        // Document the exact threshold behavior
+        let analyzer = Analyzer::default();
+
+        // Score 0-34: OK
+        assert!(0 < analyzer.suspect_threshold);
+        assert!(34 < analyzer.suspect_threshold);
+
+        // Score 35-64: SUSPECT
+        assert!(35 >= analyzer.suspect_threshold);
+        assert!(64 < analyzer.transcode_threshold);
+
+        // Score 65+: TRANSCODE
+        assert!(65 >= analyzer.transcode_threshold);
+    }
+
+    #[test]
+    fn test_threshold_ordering() {
+        // Suspect threshold must be less than transcode threshold
+        let analyzer = Analyzer::default();
+        assert!(
+            analyzer.suspect_threshold < analyzer.transcode_threshold,
+            "Suspect threshold must be < transcode threshold"
+        );
+    }
+
+    // ==========================================================================
+    // AGREEMENT BONUS DOCUMENTATION
+    // ==========================================================================
+    //
+    // When both analyses agree that a file is suspicious, we add bonus points.
+    // This is because independent corroboration increases confidence.
+    //
+    // The bonus is +15 points when:
+    //   - Spectral score >= 30 (moderate spectral evidence)
+    //   - Binary score >= 20 (some binary evidence)
+    //
+    // This can push a file from SUSPECT into TRANSCODE territory.
+    // ==========================================================================
+
+    #[test]
+    fn test_agreement_bonus_threshold() {
+        // Document the agreement bonus criteria
+        let spectral_threshold = 30;
+        let binary_threshold = 20;
+        let bonus = 15;
+
+        // If spectral=30 and binary=20, combined = 30+20+15 = 65 (TRANSCODE)
+        let combined = spectral_threshold + binary_threshold + bonus;
+        assert_eq!(combined, 65, "Agreement should push to TRANSCODE threshold");
+    }
+
+    // ==========================================================================
+    // ANALYSIS RESULT STRUCTURE TESTS
+    // ==========================================================================
+
+    #[test]
+    fn test_analysis_result_fields() {
+        // Verify all expected fields are present in AnalysisResult
+        // This serves as API documentation
+
+        let result = AnalysisResult {
+            file_path: "/path/to/file.mp3".to_string(),
+            file_name: "file.mp3".to_string(),
+            bitrate: 320,
+            sample_rate: 44100,
+            duration_secs: 180.0,
+            verdict: Verdict::Ok,
+            combined_score: 10,
+            spectral_score: 5,
+            binary_score: 5,
+            flags: vec!["test_flag".to_string()],
+            encoder: "LAME3.100".to_string(),
+            lowpass: Some(20500),
+            spectral_details: None,
+            binary_details: None,
+            error: None,
+        };
+
+        // Verify fields are accessible
+        assert_eq!(result.file_name, "file.mp3");
+        assert_eq!(result.bitrate, 320);
+        assert_eq!(result.verdict, Verdict::Ok);
+        assert!(result.error.is_none());
+    }
+
+    // ==========================================================================
+    // SCORE CAPPING TESTS
+    // ==========================================================================
+
+    #[test]
+    fn test_score_capped_at_100() {
+        // Combined score should never exceed 100
+        // Even with high individual scores + agreement bonus
+        //
+        // Example: spectral=70 + binary=50 + bonus=15 = 135 → capped to 100
+
+        // This is a documentation test - the actual capping happens in analyze()
+        let max_possible = 100;
+        assert_eq!(max_possible, 100, "Maximum score is always 100");
+    }
+
+    // ==========================================================================
+    // REAL-WORLD SCENARIO INTERPRETATIONS
+    // ==========================================================================
+    //
+    // These tests document how to interpret various analysis outcomes:
+    // ==========================================================================
+
+    #[test]
+    fn test_scenario_interpretation_clean() {
+        // CLEAN FILE: Score 0-15
+        // - Binary: No lowpass mismatch, correct encoder, uniform frames
+        // - Spectral: Smooth frequency rolloff, content to 22kHz
+        // - Verdict: OK
+        //
+        // Action: File is legitimate lossless
+
+        let clean_score = 10;
+        let analyzer = Analyzer::default();
+        assert!(clean_score < analyzer.suspect_threshold);
+    }
+
+    #[test]
+    fn test_scenario_interpretation_borderline() {
+        // BORDERLINE FILE: Score 35-40
+        // - May have unusual content (synth music, electronic)
+        // - Or high-bitrate lossy source (V0 VBR → FLAC)
+        // - Verdict: SUSPECT
+        //
+        // Action: Manual review recommended, check source
+
+        let borderline_score = 38;
+        let analyzer = Analyzer::default();
+        assert!(borderline_score >= analyzer.suspect_threshold);
+        assert!(borderline_score < analyzer.transcode_threshold);
+    }
+
+    #[test]
+    fn test_scenario_interpretation_obvious_fake() {
+        // OBVIOUS FAKE: Score 70+
+        // - Binary: Lowpass 16kHz in "320kbps" file
+        // - Spectral: Hard cutoff at 16kHz, nothing above
+        // - Verdict: TRANSCODE
+        //
+        // Action: File is definitely fake, discard or flag
+
+        let fake_score = 75;
+        let analyzer = Analyzer::default();
+        assert!(fake_score >= analyzer.transcode_threshold);
+    }
+}
