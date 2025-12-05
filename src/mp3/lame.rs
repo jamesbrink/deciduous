@@ -44,6 +44,10 @@ pub struct EncoderSignatures {
     pub lame_count: usize,
     /// Number of times Lavf/Lavc appears (FFmpeg processing)
     pub lavf_count: usize,
+    /// Number of times Fraunhofer signature appears
+    pub fraunhofer_count: usize,
+    /// Total encoder signature count (sum of all encoder occurrences)
+    pub total_encoder_passes: usize,
 }
 
 impl Default for EncoderSignatures {
@@ -58,6 +62,8 @@ impl Default for EncoderSignatures {
             all_encoders: Vec::new(),
             lame_count: 0,
             lavf_count: 0,
+            fraunhofer_count: 0,
+            total_encoder_passes: 0,
         }
     }
 }
@@ -66,12 +72,17 @@ impl EncoderSignatures {
     /// Check if file shows evidence of re-encoding
     ///
     /// Re-encoding indicators:
-    /// - Multiple LAME headers (encoded more than once with LAME)
-    /// - Multiple Lavf headers (processed multiple times by FFmpeg)
+    /// - Multiple encoder signatures of any type (encoded more than once)
     /// - Mixed encoder chain (e.g., LAME + FFmpeg = transcoded)
+    /// - Total encoder passes > 1
     pub fn shows_reencoding(&self) -> bool {
         // Multiple occurrences of same encoder
-        if self.lame_count > 1 || self.lavf_count > 1 {
+        if self.lame_count > 1 || self.lavf_count > 1 || self.fraunhofer_count > 1 {
+            return true;
+        }
+
+        // Total passes detected is more than 1
+        if self.total_encoder_passes > 1 {
             return true;
         }
 
@@ -324,8 +335,11 @@ pub fn scan_encoder_signatures<R: Read + Seek>(reader: &mut R) -> io::Result<Enc
     // These are more specific patterns so less prone to false positives
     sigs.lavf_count = count_valid_ffmpeg_signatures(&buf);
 
-    // Fraunhofer
-    if text.contains("Fraunhofer") || text.contains("FhG") {
+    // Fraunhofer - count occurrences
+    let header_region = &buf[..buf.len().min(4096)];
+    sigs.fraunhofer_count = count_pattern_occurrences(header_region, b"Fraunhofer")
+        + count_pattern_occurrences(header_region, b"FhG");
+    if sigs.fraunhofer_count > 0 {
         sigs.fraunhofer = true;
         sigs.all_encoders.push("Fraunhofer".to_string());
     }
@@ -347,6 +361,44 @@ pub fn scan_encoder_signatures<R: Read + Seek>(reader: &mut R) -> io::Result<Enc
     // Xing (sometimes standalone)
     if find_pattern(&buf, b"Xing").is_some() || find_pattern(&buf, b"Info").is_some() {
         sigs.xing = true;
+    }
+
+    // GOGO encoder (Japanese MP3 encoder)
+    if text.contains("GOGO") || text.contains("GOGOMP3") {
+        sigs.other.push("GOGO".to_string());
+        sigs.all_encoders.push("GOGO".to_string());
+    }
+
+    // BladeEnc
+    if text.contains("BladeEnc") || text.contains("Blade") {
+        sigs.other.push("BladeEnc".to_string());
+        sigs.all_encoders.push("BladeEnc".to_string());
+    }
+
+    // Shine encoder (simple/fast encoder)
+    if text.contains("Shine") {
+        sigs.other.push("Shine".to_string());
+        sigs.all_encoders.push("Shine".to_string());
+    }
+
+    // Helix encoder
+    if text.contains("Helix") || text.contains("RealNetworks") {
+        sigs.other.push("Helix".to_string());
+        sigs.all_encoders.push("Helix".to_string());
+    }
+
+    // Calculate total encoder passes
+    sigs.total_encoder_passes = sigs.lame_count
+        .max(1) // At least 1 if LAME detected
+        .saturating_sub(1) // Don't count first LAME as a re-encode
+        + sigs.lavf_count
+        + sigs.fraunhofer_count
+        + if sigs.itunes { 1 } else { 0 }
+        + sigs.other.len();
+
+    // If we have multiple unique encoders, that's at least 2 passes
+    if sigs.unique_encoder_count() > 1 && sigs.total_encoder_passes < 2 {
+        sigs.total_encoder_passes = sigs.unique_encoder_count();
     }
 
     Ok(sigs)

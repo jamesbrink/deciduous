@@ -174,6 +174,11 @@ Losselot tags files with specific flags to explain exactly what it found:
 | `lame_reencoded_x2` | LAME encoder signatures found 2 times (re-encoded once) |
 | `lame_reencoded_x3` | LAME encoder signatures found 3 times (re-encoded twice) |
 | `ffmpeg_processed_x2` | FFmpeg processed this file multiple times |
+| `fraunhofer_reencoded_x2` | Fraunhofer encoder signatures found multiple times |
+| `encoder_gogo` | GOGO encoder detected |
+| `encoder_bladeenc` | BladeEnc encoder detected |
+| `encoder_shine` | Shine encoder detected |
+| `encoder_helix` | Helix/RealNetworks encoder detected |
 
 ### Binary Analysis Flags
 
@@ -225,6 +230,8 @@ For MP3 files, Losselot reads the encoder metadata embedded in the file. The LAM
 
 - **LAME signatures**: Counts occurrences of LAME encoder tags
 - **FFmpeg/Lavf signatures**: Detects FFmpeg processing
+- **Fraunhofer signatures**: Detects Fraunhofer/FhG encoder
+- **Other encoders**: GOGO, BladeEnc, Shine, Helix, iTunes
 - **Mixed chains**: Identifies when files pass through different encoders
 
 **Why this matters:** Each lossy encoding pass causes cumulative damage. A file encoded at 128kbps, then "upgraded" to 320kbps, then converted to FLAC still only has 128kbps worth of actual audio quality. The re-encoding detection catches this "laundering" even when the spectral damage is subtle.

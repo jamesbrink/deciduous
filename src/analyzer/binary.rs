@@ -153,6 +153,17 @@ pub fn analyze<R: Read + Seek>(data: &[u8], reader: &mut R, bitrate: u32) -> Bin
                 result.flags.push(format!("ffmpeg_processed_x{}", sigs.lavf_count));
             }
 
+            // Multiple Fraunhofer passes
+            if sigs.fraunhofer_count > 1 {
+                result.score += 15;
+                result.flags.push(format!("fraunhofer_reencoded_x{}", sigs.fraunhofer_count));
+            }
+
+            // Other encoders detected (GOGO, BladeEnc, Shine, Helix)
+            for other in &sigs.other {
+                result.flags.push(format!("encoder_{}", other.to_lowercase()));
+            }
+
             // Encoding chain detected (LAME → FFmpeg etc)
             if let Some(ref chain) = result.details.encoding_chain {
                 result.flags.push(format!("encoding_chain({})", chain));
