@@ -3,29 +3,34 @@ layout: default
 title: Home
 ---
 
+<div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+
+<div style="flex: 1; min-width: 300px;">
+
 # Losselot
 
-Audio forensics. Detects fake lossless files.
+**Audio forensics meets AI-assisted development.**
 
----
+Detect fake lossless files. Every decision tracked in a queryable graph.
 
-## Use It
+![Demo](demo.gif)
 
-[**Browser Analyzer**](analyzer.html) - Client-side spectral + binary analysis
+<p style="margin-top: 15px;">
+<a href="analyzer.html" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; margin-right: 10px;">Try in Browser</a>
+<a href="demo/" style="display: inline-block; background: #16213e; color: #60a5fa; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; border: 1px solid #3b82f6;">View Decision Graph</a>
+</p>
 
-[**Decision Graph**](demo/) - See how this tool was built
+</div>
 
-[**Native CLI**](https://github.com/notactuallytreyanastasio/losselot) - Full power, parallel batch processing
-
----
+<div style="flex: 1; min-width: 300px;">
 
 ## How It Works
 
-When someone converts MP3 to FLAC, the removed frequencies don't come back. Losselot finds this:
+When someone converts MP3 to FLAC, the removed frequencies don't come back:
 
-- **Spectral** - FFT detects frequency cutoffs, rolloff patterns
-- **Binary** - Finds encoder signatures (LAME, FFmpeg, etc.)
-- **Combined** - Agreement between methods increases confidence
+- **Spectral** - FFT detects frequency cutoffs
+- **Binary** - Finds encoder signatures (LAME, FFmpeg)
+- **Combined** - Agreement increases confidence
 
 | Score | Verdict | Meaning |
 |:-----:|:-------:|:--------|
@@ -33,27 +38,43 @@ When someone converts MP3 to FLAC, the removed frequencies don't come back. Loss
 | 35-64 | SUSPECT | Possibly transcoded |
 | 65+ | TRANSCODE | Definitely lossy origin |
 
----
-
 ## Quick Start
 
 ```bash
 git clone https://github.com/notactuallytreyanastasio/losselot
 cd losselot && cargo build --release
-
-# Analyze
-./target/release/losselot ~/Music/
-
-# Web UI
 ./target/release/losselot serve ~/Music/
 ```
 
+</div>
+
+</div>
+
 ---
 
-## Under the Hood
+## The Living Museum
 
-- [Decision Graph](decision-graph) - Queryable SQLite of every dev decision
-- [Claude Tooling](claude-tooling) - AI development workflow
-- [Story](story) - Evolution from simple FFT to multi-method analysis
+This project tracks every decision in a queryable graph. When context is lost, the reasoning survives.
 
-[View on GitHub](https://github.com/notactuallytreyanastasio/losselot)
+<div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
+
+<a href="decision-graph" style="flex: 1; min-width: 200px; padding: 15px; background: #16213e; border-radius: 8px; text-decoration: none; border: 1px solid #0f3460;">
+<strong style="color: #4ade80;">Decision Graph</strong><br>
+<span style="color: #999; font-size: 14px;">77+ nodes of dev decisions</span>
+</a>
+
+<a href="claude-tooling" style="flex: 1; min-width: 200px; padding: 15px; background: #16213e; border-radius: 8px; text-decoration: none; border: 1px solid #0f3460;">
+<strong style="color: #60a5fa;">Claude Tooling</strong><br>
+<span style="color: #999; font-size: 14px;">AI development workflow</span>
+</a>
+
+<a href="story" style="flex: 1; min-width: 200px; padding: 15px; background: #16213e; border-radius: 8px; text-decoration: none; border: 1px solid #0f3460;">
+<strong style="color: #a855f7;">The Story</strong><br>
+<span style="color: #999; font-size: 14px;">How this evolved</span>
+</a>
+
+</div>
+
+<p style="margin-top: 20px; text-align: center;">
+<a href="https://github.com/notactuallytreyanastasio/losselot">View on GitHub</a>
+</p>
