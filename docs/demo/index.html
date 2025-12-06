@@ -164,8 +164,8 @@
         }
 
         function renderStats() {
-            const nodes = graphData.data.nodes;
-            const edges = graphData.data.edges;
+            const nodes = graphData.nodes;
+            const edges = graphData.edges;
             document.getElementById('node-count').textContent = nodes.length;
             document.getElementById('edge-count').textContent = edges.length;
             document.getElementById('goal-count').textContent = nodes.filter(n => n.node_type === 'goal').length;
@@ -175,7 +175,7 @@
 
         function renderNodeList() {
             const list = document.getElementById('node-list');
-            const nodes = graphData.data.nodes;
+            const nodes = graphData.nodes;
 
             list.innerHTML = nodes.map(node => `
                 <div class="node-item" data-id="${node.id}" onclick="selectNode(${node.id})">
@@ -186,7 +186,7 @@
         }
 
         function selectNode(id) {
-            selectedNode = graphData.data.nodes.find(n => n.id === id);
+            selectedNode = graphData.nodes.find(n => n.id === id);
 
             // Update selection state
             document.querySelectorAll('.node-item').forEach(el => {
@@ -203,11 +203,11 @@
                 return;
             }
 
-            const incoming = graphData.data.edges.filter(e => e.to_node_id === selectedNode.id);
-            const outgoing = graphData.data.edges.filter(e => e.from_node_id === selectedNode.id);
+            const incoming = graphData.edges.filter(e => e.to_node_id === selectedNode.id);
+            const outgoing = graphData.edges.filter(e => e.from_node_id === selectedNode.id);
 
             const getNodeTitle = (id) => {
-                const node = graphData.data.nodes.find(n => n.id === id);
+                const node = graphData.nodes.find(n => n.id === id);
                 return node ? node.title : 'Unknown';
             };
 
