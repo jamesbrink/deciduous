@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-wasm:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,14 +40,21 @@ jobs:
           cp wasm-analyzer/pkg/losselot_wasm_bg.wasm docs/wasm/
           cp wasm-analyzer/pkg/losselot_wasm.d.ts docs/wasm/ 2>/dev/null || true
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/
 
   deploy:
     if: github.ref == 'refs/heads/main'
-    needs: build-wasm
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
