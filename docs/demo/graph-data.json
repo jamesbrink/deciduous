@@ -609,6 +609,26 @@
       "created_at": "2025-12-05T22:39:44.489096-05:00",
       "updated_at": "2025-12-05T22:39:44.489096-05:00",
       "metadata_json": "{\"confidence\":90}"
+    },
+    {
+      "id": 62,
+      "node_type": "action",
+      "title": "Fixed spectrogram rendering - canvas needs visible parent before getBoundingClientRect works",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-05T22:42:19.702767-05:00",
+      "updated_at": "2025-12-05T22:42:19.702767-05:00",
+      "metadata_json": "{\"confidence\":95}"
+    },
+    {
+      "id": 63,
+      "node_type": "action",
+      "title": "Simplified landing page - minimal design, clear links, less clutter",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-05T22:44:14.779317-05:00",
+      "updated_at": "2025-12-05T22:44:14.779317-05:00",
+      "metadata_json": "{\"confidence\":85}"
     }
   ],
   "edges": [
