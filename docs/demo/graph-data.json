@@ -819,6 +819,36 @@
       "created_at": "2025-12-06T00:27:36.577814-05:00",
       "updated_at": "2025-12-06T00:27:36.577814-05:00",
       "metadata_json": "{\"confidence\":75}"
+    },
+    {
+      "id": 83,
+      "node_type": "observation",
+      "title": "User merged Spike A (timeline view) to main before other spikes completed - may need to rebase B and C, or iterate on A instead",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-06T00:32:42.561074-05:00",
+      "updated_at": "2025-12-06T00:32:42.561074-05:00",
+      "metadata_json": "{\"confidence\":70}"
+    },
+    {
+      "id": 84,
+      "node_type": "action",
+      "title": "Built Spike B: Force-directed graph explorer with D3, path tracing, filter/search, zoom/pan",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-06T00:32:55.971734-05:00",
+      "updated_at": "2025-12-06T00:32:55.971734-05:00",
+      "metadata_json": "{\"confidence\":75}"
+    },
+    {
+      "id": 85,
+      "node_type": "action",
+      "title": "Built Spike C: Story mode spelunk page",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-06T00:39:27.067395-05:00",
+      "updated_at": "2025-12-06T00:39:27.067395-05:00",
+      "metadata_json": "{\"confidence\":85,\"commit\":\"da476ee\"}"
     }
   ],
   "edges": [
@@ -1289,6 +1319,24 @@
       "weight": 1.0,
       "rationale": "Implemented timeline approach",
       "created_at": "2025-12-06T00:27:44.059255-05:00"
+    },
+    {
+      "id": 53,
+      "from_node_id": 80,
+      "to_node_id": 84,
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Implemented graph explorer approach",
+      "created_at": "2025-12-06T00:33:15.908732-05:00"
+    },
+    {
+      "id": 54,
+      "from_node_id": 81,
+      "to_node_id": 85,
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Implemented this approach as Spike C",
+      "created_at": "2025-12-06T00:39:33.775376-05:00"
     }
   ]
 }
