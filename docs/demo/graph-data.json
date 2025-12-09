@@ -849,6 +849,46 @@
       "created_at": "2025-12-06T00:39:27.067395-05:00",
       "updated_at": "2025-12-06T00:39:27.067395-05:00",
       "metadata_json": "{\"confidence\":85,\"commit\":\"da476ee\"}"
+    },
+    {
+      "id": 86,
+      "node_type": "action",
+      "title": "Deployed all three spelunk spikes to main for side-by-side comparison",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-06T01:50:36.618675-05:00",
+      "updated_at": "2025-12-06T01:50:36.618675-05:00",
+      "metadata_json": "{\"confidence\":95}"
+    },
+    {
+      "id": 87,
+      "node_type": "action",
+      "title": "Redesigned homepage: full-width GIF, vertical nav linking all spelunk pages",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-09T12:43:25.738568-05:00",
+      "updated_at": "2025-12-09T12:43:25.738568-05:00",
+      "metadata_json": "{\"confidence\":90,\"commit\":\"9b263ad\"}"
+    },
+    {
+      "id": 88,
+      "node_type": "action",
+      "title": "Rewrote homepage as standalone HTML - removed Jekyll sidebar, cleaner layout",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-09T12:53:50.300968-05:00",
+      "updated_at": "2025-12-09T12:53:50.300968-05:00",
+      "metadata_json": "{\"confidence\":90,\"commit\":\"3937619\"}"
+    },
+    {
+      "id": 89,
+      "node_type": "action",
+      "title": "Switched homepage to light color scheme per user preference",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-09T15:50:25.833927-05:00",
+      "updated_at": "2025-12-09T15:50:25.833927-05:00",
+      "metadata_json": "{\"confidence\":95,\"commit\":\"304cbc6\"}"
     }
   ],
   "edges": [
@@ -1337,6 +1377,15 @@
       "weight": 1.0,
       "rationale": "Implemented this approach as Spike C",
       "created_at": "2025-12-06T00:39:33.775376-05:00"
+    },
+    {
+      "id": 55,
+      "from_node_id": 88,
+      "to_node_id": 89,
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Iterated on design",
+      "created_at": "2025-12-09T15:50:27.639140-05:00"
     }
   ]
 }
