@@ -7,7 +7,6 @@
 
 import React from 'react';
 import type { DecisionNode, GraphData } from '../types/graph';
-import { truncate } from '../types/graph';
 import { NodeBadges, EdgeBadge, StatusBadge } from './NodeBadge';
 
 interface DetailPanelProps {
@@ -80,9 +79,14 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
               style={styles.connection}
               onClick={() => onSelectNode(edge.from_node_id)}
             >
-              <EdgeBadge type={edge.edge_type} />
-              <span style={styles.arrow}>←</span>
-              <span>{truncate(getNodeTitle(edge.from_node_id), 50)}</span>
+              <div style={styles.connectionHeader}>
+                <EdgeBadge type={edge.edge_type} />
+                <span style={styles.arrow}>←</span>
+                <span style={styles.connectionTitle}>{getNodeTitle(edge.from_node_id)}</span>
+              </div>
+              {edge.rationale && (
+                <div style={styles.connectionRationale}>{edge.rationale}</div>
+              )}
             </div>
           ))}
         </div>
@@ -97,11 +101,13 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
               style={styles.connection}
               onClick={() => onSelectNode(edge.to_node_id)}
             >
-              <EdgeBadge type={edge.edge_type} />
-              <span style={styles.arrow}>→</span>
-              <span>{truncate(getNodeTitle(edge.to_node_id), 50)}</span>
+              <div style={styles.connectionHeader}>
+                <EdgeBadge type={edge.edge_type} />
+                <span style={styles.arrow}>→</span>
+                <span style={styles.connectionTitle}>{getNodeTitle(edge.to_node_id)}</span>
+              </div>
               {edge.rationale && (
-                <span style={styles.rationale}>{edge.rationale}</span>
+                <div style={styles.connectionRationale}>{edge.rationale}</div>
               )}
             </div>
           ))}
@@ -177,23 +183,36 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#888',
   },
   connection: {
-    padding: '10px',
+    padding: '12px',
     backgroundColor: '#16213e',
     borderRadius: '6px',
     marginBottom: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
     cursor: 'pointer',
     transition: 'background-color 0.2s',
   },
+  connectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
+  connectionTitle: {
+    color: '#eee',
+    fontSize: '13px',
+    flex: 1,
+    minWidth: 0,
+  },
+  connectionRationale: {
+    color: '#888',
+    fontSize: '12px',
+    marginTop: '8px',
+    paddingTop: '8px',
+    borderTop: '1px solid #0f3460',
+    lineHeight: 1.4,
+  },
   arrow: {
     color: '#666',
-  },
-  rationale: {
-    color: '#666',
-    fontSize: '11px',
-    marginLeft: 'auto',
+    flexShrink: 0,
   },
   navLinks: {
     marginTop: '20px',
