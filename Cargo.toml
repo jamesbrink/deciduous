@@ -13,11 +13,19 @@ readme = "README.md"
 keywords = ["decision-graph", "ai-development", "context-management", "claude", "llm"]
 categories = ["command-line-utilities", "development-tools"]
 exclude = [
-    "web/node_modules/**",
-    "web/dist/**",
-    "web/dist-embed/**",
+    # Web viewer - not needed for cargo install
+    "web/**",
+    # Documentation site - hosted separately
+    "docs/**",
+    # Example files - large demo files
+    "examples/**",
+    # Database files
     "*.db",
     ".deciduous/**",
+    # Large image files
+    "*.png",
+    # AppImage packaging
+    "appimage/**",
 ]
 
 [[bin]]
