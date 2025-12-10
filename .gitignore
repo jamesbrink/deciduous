@@ -32,3 +32,12 @@ report.html
 
 # Generated/temp files
 git.log
+
+# Web build artifacts
+web/bun.lock
+web/build-embed.sh
+web/node_modules/
+
+# Database
+deciduous.db
+*.db
