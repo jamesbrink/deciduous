@@ -80,12 +80,41 @@ deciduous link <parent_id> <child_id> -r "Retroactive connection - <reason>"
 5. Resume work on the most relevant goal
 </post_recovery>
 
+## Multi-User Sync
+
+<multi_user_sync>
+If working in a team, check for and apply patches from teammates:
+
+```bash
+# Check for unapplied patches
+deciduous diff status
+
+# Apply all patches (idempotent - safe to run multiple times)
+deciduous diff apply .deciduous/patches/*.json
+
+# Preview before applying
+deciduous diff apply --dry-run .deciduous/patches/teammate-feature.json
+```
+
+Before pushing your branch, export your decisions:
+
+```bash
+# Export your branch's decisions as a patch
+deciduous diff export --branch $(git rev-parse --abbrev-ref HEAD) \
+  -o .deciduous/patches/$(whoami)-$(git rev-parse --abbrev-ref HEAD).json
+
+# Commit the patch file
+git add .deciduous/patches/
+```
+</multi_user_sync>
+
 ## Remember
 
 <reminder>
 The graph survives context compaction. Query it early, query it often.
 Log decisions IN REAL-TIME as you work, not retroactively.
 CONNECT EVERY NODE LOGICALLY - dangling outcomes break the graph's value.
+Share your decisions via patches for teammates.
 </reminder>
 
 </context_recovery>

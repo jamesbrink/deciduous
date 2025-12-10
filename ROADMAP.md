@@ -210,3 +210,18 @@
   - Export to formats compatible with BI tools (Metabase, Superset, etc.)
   - Built-in charts in TUI or web viewer
   - `deciduous report` to generate analytical summaries
+
+### Documentation Restructure
+- [ ] Rethink the `docs/` folder organization
+  - Currently: GitHub Pages viewer lives here
+  - Problem: Also contains ad-hoc design docs (like MULTI_USER_SYNC.md)
+  - Consider: Separate `docs/` (user-facing) from `design/` (internal design docs)
+  - Consider: Move viewer to dedicated folder
+- [ ] Consolidate documentation
+  - Single source of truth in CLAUDE.md (the canonical reference)
+  - .claude/commands/ and .windsurf/rules/ derive from CLAUDE.md patterns
+  - README.md stays user-facing (installation, quick start)
+- [ ] Auto-generate tooling docs
+  - `deciduous docs` command to output markdown documentation
+  - Include all commands, options, examples
+  - Keep README.md and tooling files in sync automatically

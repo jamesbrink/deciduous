@@ -158,6 +158,42 @@ deciduous link <parent_id> <child_id> -r "Retroactive connection - <reason>"
 - When graph looks disconnected in web UI
 </integrity_rules>
 
+## Multi-User Sync
+
+<multi_user_sync>
+**Problem**: Multiple users work on the same codebase, each with a local `.deciduous/deciduous.db` (gitignored). How to share decisions?
+
+**Solution**: jj-inspired dual-ID model. Each node has:
+- `id` (integer): Local database primary key, different per machine
+- `change_id` (UUID): Globally unique, stable across all databases
+
+### Commands
+```bash
+# Export your branch's decisions as a patch
+deciduous diff export --branch feature-x -o .deciduous/patches/alice-feature.json
+
+# Export specific nodes
+deciduous diff export --nodes 172-188 -o .deciduous/patches/feature.json --author alice
+
+# Apply patches from teammates (idempotent)
+deciduous diff apply .deciduous/patches/*.json
+
+# Preview without applying
+deciduous diff apply --dry-run .deciduous/patches/bob.json
+
+# Check patch status
+deciduous diff status
+```
+
+### PR Workflow
+1. Create nodes while working
+2. Export: `deciduous diff export --branch my-feature -o .deciduous/patches/my-feature.json`
+3. Commit the patch file (NOT the database)
+4. Open PR with patch file
+5. Teammates pull and apply: `deciduous diff apply .deciduous/patches/my-feature.json`
+6. **Idempotent**: Same patch applied twice = no duplicates
+</multi_user_sync>
+
 ## The Rule
 
 <core_rule>
@@ -165,6 +201,7 @@ LOG BEFORE YOU CODE, NOT AFTER.
 CONNECT EVERY NODE TO ITS PARENT.
 AUDIT FOR ORPHANS REGULARLY.
 SYNC BEFORE YOU PUSH.
+EXPORT PATCHES FOR YOUR TEAMMATES.
 </core_rule>
 
 </decision_graph_workflow>

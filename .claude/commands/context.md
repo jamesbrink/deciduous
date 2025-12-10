@@ -153,9 +153,36 @@ SESSION END → Final audit
 
 ---
 
+## Multi-User Sync
+
+If working in a team, check for and apply patches from teammates:
+
+```bash
+# Check for unapplied patches
+deciduous diff status
+
+# Apply all patches (idempotent - safe to run multiple times)
+deciduous diff apply .deciduous/patches/*.json
+
+# Preview before applying
+deciduous diff apply --dry-run .deciduous/patches/teammate-feature.json
+```
+
+Before pushing your branch, export your decisions for teammates:
+
+```bash
+# Export your branch's decisions as a patch
+deciduous diff export --branch $(git rev-parse --abbrev-ref HEAD) \
+  -o .deciduous/patches/$(whoami)-$(git rev-parse --abbrev-ref HEAD).json
+
+# Commit the patch file
+git add .deciduous/patches/
+```
+
 ## Why This Matters
 
 - Context loss during compaction loses your reasoning
 - The graph survives - query it early, query it often
 - Retroactive logging misses details - log in the moment
 - The user sees the graph live - show your work
+- Patches share reasoning with teammates

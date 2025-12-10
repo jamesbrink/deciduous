@@ -260,6 +260,10 @@ src/
 | `deciduous sync` | Export graph to JSON file |
 | `deciduous dot` | Export graph as DOT format |
 | `deciduous writeup` | Generate PR writeup markdown |
+| `deciduous diff export` | Export nodes as a shareable patch |
+| `deciduous diff apply` | Apply patches from teammates |
+| `deciduous diff status` | List available patches |
+| `deciduous migrate` | Add change_id columns for sync |
 
 ## DOT Export Options
 
@@ -317,6 +321,56 @@ The `--auto` flag generates branch-specific filenames (e.g., `docs/decision-grap
 The database contains the decision graph. If you need to clear data:
 1. `deciduous backup` first
 2. Ask the user before any destructive operation
+
+---
+
+## Multi-User Sync
+
+**Problem**: Multiple users work on the same codebase, each with a local `.deciduous/deciduous.db` (gitignored). How to share decisions?
+
+**Solution**: jj-inspired dual-ID model. Each node has:
+- `id` (integer): Local database primary key, different per machine
+- `change_id` (UUID): Globally unique, stable across all databases
+
+### Export/Apply Workflow
+
+```bash
+# Export your branch's decisions as a patch
+deciduous diff export --branch feature-x -o .deciduous/patches/alice-feature.json
+
+# Export specific node IDs
+deciduous diff export --nodes 172-188 -o .deciduous/patches/feature.json --author alice
+
+# Apply patches from teammates (idempotent - safe to re-apply)
+deciduous diff apply .deciduous/patches/*.json
+
+# Preview what would change
+deciduous diff apply --dry-run .deciduous/patches/bob-refactor.json
+
+# Check patch status
+deciduous diff status
+```
+
+### PR Workflow
+
+1. Create nodes locally while working
+2. Export: `deciduous diff export --branch my-feature -o .deciduous/patches/my-feature.json`
+3. Commit the patch file (NOT the database)
+4. Open PR with patch file included
+5. Teammates pull and apply: `deciduous diff apply .deciduous/patches/my-feature.json`
+6. **Idempotent**: Same patch applied twice = no duplicates
+
+### Patch Format (JSON)
+
+```json
+{
+  "version": "1.0",
+  "author": "alice",
+  "branch": "feature/auth",
+  "nodes": [{ "change_id": "uuid...", "title": "...", ... }],
+  "edges": [{ "from_change_id": "uuid1", "to_change_id": "uuid2", ... }]
+}
+```
 
 ---
 

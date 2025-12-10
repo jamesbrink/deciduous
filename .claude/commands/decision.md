@@ -88,6 +88,15 @@ The graph viewer shows a branch dropdown in the stats bar:
 ### Sync Graph
 - `sync` -> `deciduous sync`
 
+### Multi-User Sync (Diff/Patch)
+- `diff export -o <file>` -> `deciduous diff export -o <file>` (export nodes as patch)
+- `diff export --nodes 1-10 -o <file>` -> export specific nodes
+- `diff export --branch feature-x -o <file>` -> export nodes from branch
+- `diff apply <file>` -> `deciduous diff apply <file>` (apply patch, idempotent)
+- `diff apply --dry-run <file>` -> preview without applying
+- `diff status` -> `deciduous diff status` (list patches in .deciduous/patches/)
+- `migrate` -> `deciduous migrate` (add change_id columns for sync)
+
 ### Export & Visualization
 - `dot` -> `deciduous dot` (output DOT to stdout)
 - `dot --png` -> `deciduous dot --png -o graph.dot` (generate PNG)
@@ -159,6 +168,51 @@ deciduous link <parent_id> <child_id> -r "Retroactive connection - <why>"
 - At session end
 - When the web UI graph looks disconnected
 
+## Multi-User Sync
+
+**Problem**: Multiple users work on the same codebase, each with a local `.deciduous/deciduous.db` (gitignored). How to share decisions?
+
+**Solution**: jj-inspired dual-ID model. Each node has:
+- `id` (integer): Local database primary key, different per machine
+- `change_id` (UUID): Globally unique, stable across all databases
+
+### Export Workflow
+```bash
+# Export nodes from your branch as a patch file
+deciduous diff export --branch feature-x -o .deciduous/patches/alice-feature.json
+
+# Or export specific node IDs
+deciduous diff export --nodes 172-188 -o .deciduous/patches/alice-feature.json --author alice
+```
+
+### Apply Workflow
+```bash
+# Apply patches from teammates (idempotent - safe to re-apply)
+deciduous diff apply .deciduous/patches/*.json
+
+# Preview what would change
+deciduous diff apply --dry-run .deciduous/patches/bob-refactor.json
+```
+
+### PR Workflow
+1. Create nodes locally while working
+2. Export: `deciduous diff export --branch my-feature -o .deciduous/patches/my-feature.json`
+3. Commit the patch file (NOT the database)
+4. Open PR with patch file included
+5. Teammates pull and apply: `deciduous diff apply .deciduous/patches/my-feature.json`
+6. **Idempotent**: Same patch applied twice = no duplicates
+
+### Patch Format (JSON)
+```json
+{
+  "version": "1.0",
+  "author": "alice",
+  "branch": "feature/auth",
+  "nodes": [{ "change_id": "uuid...", "title": "...", ... }],
+  "edges": [{ "from_change_id": "uuid1", "to_change_id": "uuid2", ... }]
+}
+```
+
 ## The Rule
 
 ```
@@ -166,6 +220,7 @@ LOG BEFORE YOU CODE, NOT AFTER.
 CONNECT EVERY NODE TO ITS PARENT.
 AUDIT FOR ORPHANS REGULARLY.
 SYNC BEFORE YOU PUSH.
+EXPORT PATCHES FOR YOUR TEAMMATES.
 ```
 
 **Live graph**: https://notactuallytreyanastasio.github.io/deciduous/
