@@ -9,7 +9,7 @@ use std::path::Path;
 /// Static HTML viewer for GitHub Pages (embedded at compile time)
 const PAGES_VIEWER_HTML: &str = include_str!("pages_viewer.html");
 
-/// GitHub Pages deploy workflow
+/// GitHub Pages deploy workflow (deploys docs/ to /graph subpath)
 const DEPLOY_PAGES_WORKFLOW: &str = r#"name: Deploy Decision Graph to Pages
 
 on:
@@ -25,7 +25,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: "pages-graph"
   cancel-in-progress: true
 
 jobs:
@@ -34,24 +34,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./docs
-          destination: ./_site
+      - name: Prepare site
+        run: |
+          mkdir -p _site/graph
+          cp docs/index.html _site/graph/
+          cp docs/graph-data.json _site/graph/
+          touch _site/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}graph/
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
