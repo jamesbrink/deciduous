@@ -45,6 +45,14 @@ enum Command {
         /// Git commit hash to link this node to
         #[arg(long)]
         commit: Option<String>,
+
+        /// Prompt that triggered this decision (stored as metadata)
+        #[arg(short, long)]
+        prompt: Option<String>,
+
+        /// Files associated with this node (comma-separated)
+        #[arg(short, long)]
+        files: Option<String>,
     },
 
     /// Add an edge between nodes
@@ -206,13 +214,15 @@ fn main() {
 
     match args.command {
         Command::Init { .. } => unreachable!(), // Handled above
-        Command::Add { node_type, title, description, confidence, commit } => {
-            match db.create_node(&node_type, &title, description.as_deref(), confidence, commit.as_deref()) {
+        Command::Add { node_type, title, description, confidence, commit, prompt, files } => {
+            match db.create_node_full(&node_type, &title, description.as_deref(), confidence, commit.as_deref(), prompt.as_deref(), files.as_deref()) {
                 Ok(id) => {
                     let conf_str = confidence.map(|c| format!(" [confidence: {}%]", c)).unwrap_or_default();
                     let commit_str = commit.as_ref().map(|c| format!(" [commit: {}]", &c[..7.min(c.len())])).unwrap_or_default();
-                    println!("{} node {} (type: {}, title: {}){}{}",
-                        "Created".green(), id, node_type, title, conf_str, commit_str);
+                    let prompt_str = if prompt.is_some() { " [prompt saved]" } else { "" };
+                    let files_str = files.as_ref().map(|f| format!(" [files: {}]", f)).unwrap_or_default();
+                    println!("{} node {} (type: {}, title: {}){}{}{}{}",
+                        "Created".green(), id, node_type, title, conf_str, commit_str, prompt_str, files_str);
                 }
                 Err(e) => {
                     eprintln!("{} {}", "Error:".red(), e);

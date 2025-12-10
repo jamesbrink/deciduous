@@ -7,7 +7,40 @@ use crate::schema::*;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sqlite::SqliteConnection;
+use serde_json::json;
 use std::path::Path;
+
+/// Build metadata JSON from optional fields (confidence, commit, prompt, files)
+fn build_metadata_json(
+    confidence: Option<u8>,
+    commit: Option<&str>,
+    prompt: Option<&str>,
+    files: Option<&str>,
+) -> Option<String> {
+    // Only create JSON if at least one field is present
+    if confidence.is_none() && commit.is_none() && prompt.is_none() && files.is_none() {
+        return None;
+    }
+
+    let mut obj = serde_json::Map::new();
+
+    if let Some(c) = confidence {
+        obj.insert("confidence".to_string(), json!(c.min(100)));
+    }
+    if let Some(h) = commit {
+        obj.insert("commit".to_string(), json!(h));
+    }
+    if let Some(p) = prompt {
+        obj.insert("prompt".to_string(), json!(p));
+    }
+    if let Some(f) = files {
+        // Split comma-separated files into array
+        let file_list: Vec<&str> = f.split(',').map(|s| s.trim()).collect();
+        obj.insert("files".to_string(), json!(file_list));
+    }
+
+    Some(serde_json::Value::Object(obj).to_string())
+}
 
 /// Walk up directory tree to find .deciduous folder (like git finds .git)
 /// Can be overridden with DECIDUOUS_DB_PATH env var
@@ -466,16 +499,25 @@ impl Database {
 
     /// Create a new decision node
     pub fn create_node(&self, node_type: &str, title: &str, description: Option<&str>, confidence: Option<u8>, commit: Option<&str>) -> Result<i32> {
+        self.create_node_full(node_type, title, description, confidence, commit, None, None)
+    }
+
+    /// Create a decision node with full metadata (including prompt and files)
+    pub fn create_node_full(
+        &self,
+        node_type: &str,
+        title: &str,
+        description: Option<&str>,
+        confidence: Option<u8>,
+        commit: Option<&str>,
+        prompt: Option<&str>,
+        files: Option<&str>,
+    ) -> Result<i32> {
         let mut conn = self.get_conn()?;
         let now = chrono::Local::now().to_rfc3339();
 
-        // Build metadata JSON with confidence and/or commit if provided
-        let metadata = match (confidence, commit) {
-            (Some(c), Some(h)) => Some(format!(r#"{{"confidence":{},"commit":"{}"}}"#, c.min(100), h)),
-            (Some(c), None) => Some(format!(r#"{{"confidence":{}}}"#, c.min(100))),
-            (None, Some(h)) => Some(format!(r#"{{"commit":"{}"}}"#, h)),
-            (None, None) => None,
-        };
+        // Build metadata JSON with all optional fields
+        let metadata = build_metadata_json(confidence, commit, prompt, files);
 
         let new_node = NewDecisionNode {
             node_type,

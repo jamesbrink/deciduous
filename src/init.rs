@@ -77,13 +77,19 @@ Based on $ARGUMENTS:
 - `graph` -> `deciduous graph`
 - `commands` -> `deciduous commands`
 
-### Create Nodes (with optional confidence)
+### Create Nodes (with optional metadata)
 - `add goal <title>` -> `deciduous add goal "<title>" -c 90`
 - `add decision <title>` -> `deciduous add decision "<title>" -c 75`
 - `add option <title>` -> `deciduous add option "<title>" -c 70`
 - `add action <title>` -> `deciduous add action "<title>" -c 85`
 - `add obs <title>` -> `deciduous add observation "<title>" -c 80`
 - `add outcome <title>` -> `deciduous add outcome "<title>" -c 90`
+
+### Optional Flags for Nodes
+- `-c, --confidence <0-100>` - Confidence level
+- `-p, --prompt "..."` - Store the user prompt that triggered this node
+- `-f, --files "file1.rs,file2.rs"` - Associate files with this node
+- `--commit <hash>` - Link to a git commit
 
 ### Create Edges
 - `link <from> <to> [reason]` -> `deciduous link <from> <to> -r "<reason>"`
@@ -332,10 +338,15 @@ deciduous add goal "Title" -c 90
 deciduous add decision "Title" -c 75
 deciduous add action "Title" -c 85
 deciduous link FROM TO -r "reason"
-deciduous serve   # View live
+deciduous serve   # View live (auto-refreshes every 30s)
 deciduous sync    # Export for static hosting
 deciduous dot --png -o graph.dot  # Generate visualization
 deciduous writeup -t "PR Title"   # Generate PR writeup
+
+# Optional metadata for nodes
+# -p, --prompt "..."   Store the user prompt that triggered this
+# -f, --files "a.rs,b.rs"   Associate files with this node
+# --commit <hash>   Link to a git commit
 ```
 
 ### Session Start Checklist
@@ -399,6 +410,14 @@ deciduous add decision "Title" -c 75
 deciduous add action "Title" -c 85
 deciduous add outcome "Title" -c 95
 deciduous add observation "Title" -c 80
+
+# Optional metadata flags for nodes
+# -p, --prompt "..."   Store the user prompt that triggered this
+# -f, --files "a.rs,b.rs"   Associate files with this node
+# --commit <hash>   Link to a git commit
+
+# Example with prompt and files
+deciduous add goal "Add auth" -c 90 -p "User asked: add login feature" -f "src/auth.rs,src/routes.rs"
 
 # Link nodes together
 deciduous link <from> <to> -r "reason"
@@ -550,10 +569,15 @@ deciduous add goal "Title" -c 90
 deciduous add decision "Title" -c 75
 deciduous add action "Title" -c 85
 deciduous link FROM TO -r "reason"
-deciduous serve   # View live
+deciduous serve   # View live (auto-refreshes every 30s)
 deciduous sync    # Export for static hosting
 deciduous dot --png -o graph.dot  # Generate visualization
 deciduous writeup -t "PR Title"   # Generate PR writeup
+
+# Optional metadata for nodes
+# -p, --prompt "..."   Store the user prompt that triggered this
+# -f, --files "a.rs,b.rs"   Associate files with this node
+# --commit <hash>   Link to a git commit
 ```
 
 ### Session Start Checklist
