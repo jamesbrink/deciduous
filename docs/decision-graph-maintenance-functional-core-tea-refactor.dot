@@ -28,6 +28,14 @@ digraph DecisionGraph {
   307 [label="[307] Maintenance PR complete: TEA architec...\\n(100%)" shape="ellipse" fillcolor="#87CEEB" style="filled"];
   308 [label="[308] Committed TEA refactor: 0331ae1\\n(100%)" shape="box" fillcolor="#90EE90" style="filled"];
   309 [label="[309] Continuing maintenance: reviewing rem...\\n(85%)" shape="box" fillcolor="#90EE90" style="filled"];
+  310 [label="[310] Draft PR #9 created with comprehensiv...\\n(100%)" shape="ellipse" fillcolor="#87CEEB" style="filled"];
+  311 [label="[311] Adding tests for diff.rs module - pat...\\n(85%)" shape="box" fillcolor="#90EE90" style="filled"];
+  312 [label="[312] Added 10 tests for diff.rs - total te...\\n(100%)" shape="ellipse" fillcolor="#87CEEB" style="filled"];
+  313 [label="[313] Reviewing db.rs for testability impro...\\n(85%)" shape="box" fillcolor="#90EE90" style="filled"];
+  314 [label="[314] Added 13 tests for db.rs pure functio...\\n(100%)" shape="ellipse" fillcolor="#87CEEB" style="filled"];
+  315 [label="[315] Creating integration tests for CLI wo...\\n(85%)" shape="box" fillcolor="#90EE90" style="filled"];
+  316 [label="[316] Added 16 CLI integration tests - tota...\\n(100%)" shape="ellipse" fillcolor="#87CEEB" style="filled"];
+  317 [label="[317] Maintenance PR phase 1 complete: 105 ...\\n(100%)" shape="ellipse" fillcolor="#87CEEB" style="filled"];
 
   285 -> 286 [style="solid" color="#333333" label="First step: decide audit ap..."];
   286 -> 287 [style="solid" color="#333333" label="Executing panic audit"];
@@ -52,4 +60,13 @@ digraph DecisionGraph {
   285 -> 307 [style="solid" color="#333333" label="Goal achieved"];
   307 -> 308 [style="solid" color="#333333" label="Implementation committed"];
   308 -> 309 [style="solid" color="#333333" label="Next phase of maintenance"];
+  309 -> 310 [style="solid" color="#333333" label="PR opened"];
+  310 -> 311 [style="solid" color="#333333" label="Continuing PR work"];
+  311 -> 312 [style="solid" color="#333333" label="Tests added"];
+  312 -> 313 [style="solid" color="#333333" label="Next maintenance step"];
+  313 -> 314 [style="solid" color="#333333" label="Tests added"];
+  314 -> 315 [style="solid" color="#333333" label="Next maintenance step"];
+  315 -> 316 [style="solid" color="#333333" label="Tests added"];
+  285 -> 317 [style="solid" color="#333333" label="Goal achieved"];
+  316 -> 317 [style="solid" color="#333333" label="Final outcome"];
 }
