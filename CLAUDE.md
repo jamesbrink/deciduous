@@ -4,192 +4,123 @@ Decision graph tooling for AI-assisted development. Track every goal, decision, 
 
 ---
 
-## ⚠️ MANDATORY: Decision Graph Workflow
+## Decision Graph Workflow
 
-**THIS IS NOT OPTIONAL. The decision graph is watched live by the user. Every step must be logged IN REAL-TIME, not retroactively.**
+**THIS IS MANDATORY. Log decisions IN REAL-TIME, not retroactively.**
 
 ### The Core Rule
 
 ```
-BEFORE you do something → Log what you're ABOUT to do
-AFTER it succeeds/fails → Log the outcome
-ALWAYS → Sync frequently so the live graph updates
+BEFORE you do something -> Log what you're ABOUT to do
+AFTER it succeeds/fails -> Log the outcome
+CONNECT immediately -> Link every node to its parent
+AUDIT regularly -> Check for missing connections
 ```
 
 ### Behavioral Triggers - MUST LOG WHEN:
 
 | Trigger | Log Type | Example |
 |---------|----------|---------|
-| User asks for a new feature | `goal` | "Add dark mode to UI" |
-| You're choosing between approaches | `decision` | "Choose state management approach" |
-| You identify multiple ways to do something | `option` (for each) | "Option A: Redux", "Option B: Context" |
-| You're about to write/edit code | `action` | "Implementing Redux store" |
-| You notice something interesting | `observation` | "Existing code uses hooks pattern" |
+| User asks for a new feature | `goal` **with -p** | "Add dark mode" |
+| Choosing between approaches | `decision` | "Choose state management" |
+| About to write/edit code | `action` | "Implementing Redux store" |
 | Something worked or failed | `outcome` | "Redux integration successful" |
-| You complete a git commit | `action` with `--commit` | Include the commit hash |
+| Notice something interesting | `observation` | "Existing code uses hooks" |
 
-### The Loop - Follow This EVERY Time
+### CRITICAL: Capture User Prompts When Semantically Meaningful
 
-```
-1. USER REQUEST RECEIVED
-   ↓
-   Log: goal or decision (what are we trying to do?)
-
-2. BEFORE WRITING ANY CODE
-   ↓
-   Log: action "About to implement X"
-   Link: Connect action to its parent goal/decision IMMEDIATELY
-
-3. AFTER EACH SIGNIFICANT CHANGE
-   ↓
-   Log: outcome "X completed" or observation "Found Y"
-   Link: Connect outcome back to its action/goal IMMEDIATELY
-
-4. AUDIT CONNECTIONS
-   ↓
-   Ask: Does every outcome link to what caused it?
-   Ask: Does every action link to why I did it?
-   Fix: Any missing connections before continuing
-
-5. BEFORE EVERY GIT PUSH
-   ↓
-   Run: deciduous sync
-   Commit: Include graph-data.json
-
-6. REPEAT - The user is watching the graph live
-```
-
-### ⚠️ CRITICAL: Maintain the Logical Thread
-
-**The graph's value is in its CONNECTIONS, not just its nodes.**
-
-Every time you create a node, IMMEDIATELY link it:
-
-| When you create... | Link it to... | Why |
-|-------------------|---------------|-----|
-| `outcome` | The action/goal it resolves | Shows what work produced this result |
-| `action` | The goal/decision that spawned it | Shows why you did this work |
-| `option` | Its parent decision | Shows what choice this relates to |
-| `observation` | Related goal/action | Shows context for the finding |
-| `decision` | Parent goal (if any) | Shows what prompted the choice |
-
-**Root `goal` nodes are the ONLY valid orphans.** Everything else needs a parent.
-
-### Audit Checklist (Do This Regularly)
-
-Before `deciduous sync`, ask yourself:
-1. Does every **outcome** link back to what caused it?
-2. Does every **action** link to why I did it?
-3. Are there any **dangling outcomes** floating without parents?
-4. Can I trace from any outcome back to a root goal?
+**Use `-p` / `--prompt` when a user request triggers new work or changes direction.** Don't add prompts to every node - only when a prompt is the actual catalyst.
 
 ```bash
-# Find nodes that might need connections
-deciduous edges | cut -d'>' -f2 | cut -d' ' -f2 | sort -u > /tmp/has_parent.txt
-deciduous nodes | tail -n+3 | awk '{print $1}' | while read id; do
-  grep -q "^$id$" /tmp/has_parent.txt || echo "CHECK: $id"
-done
+# New feature request - capture the prompt on the goal
+deciduous add goal "Add auth" -c 90 -p "User asked: add login to the app"
+
+# Downstream work links back - no prompt needed (it flows via edges)
+deciduous add decision "Choose auth method" -c 75
+deciduous link <goal_id> <decision_id> -r "Deciding approach"
+
+# BUT if the user gives new direction mid-stream, capture that too
+deciduous add action "Switch to OAuth" -c 85 -p "User said: use OAuth instead"
 ```
+
+**When to capture prompts:**
+- Root `goal` nodes: YES - the original request
+- Major direction changes: YES - when user redirects the work
+- Routine downstream nodes: NO - they inherit context via edges
+
+Prompts are viewable in the TUI detail panel (`deciduous tui`) and flow through the graph via connections.
+
+### ⚠️ CRITICAL: Maintain Connections
+
+**The graph's value is in its CONNECTIONS, not just nodes.**
+
+| When you create... | IMMEDIATELY link to... |
+|-------------------|------------------------|
+| `outcome` | The action/goal it resolves |
+| `action` | The goal/decision that spawned it |
+| `option` | Its parent decision |
+| `observation` | Related goal/action |
+
+**Root `goal` nodes are the ONLY valid orphans.**
 
 ### Quick Commands
 
 ```bash
-# Log nodes (use -c/--confidence 0-100)
-deciduous add goal "Title" -c 90
-deciduous add decision "Title" -c 75
+deciduous add goal "Title" -c 90 -p "User's original request"
 deciduous add action "Title" -c 85
-deciduous add observation "Title" -c 70
-deciduous add outcome "Title" -c 95
+deciduous link FROM TO -r "reason"  # DO THIS IMMEDIATELY!
+deciduous serve   # View live (auto-refreshes every 30s)
+deciduous sync    # Export for static hosting
 
-# Link nodes
-deciduous link FROM_ID TO_ID -r "Reason for connection"
-deciduous link 1 2 --edge-type chosen -r "Selected this approach"
+# Optional metadata
+# -p, --prompt "..."   Store the user prompt (use when semantically meaningful)
+# -f, --files "a.rs,b.rs"   Associate files
+# -b, --branch <name>   Git branch (auto-detected)
 
-# View graph
-deciduous nodes           # List all nodes
-deciduous nodes -b main   # Filter by branch
-deciduous edges           # List all edges
-deciduous graph           # Full graph as JSON
-
-# Branch-based grouping (auto-detects git branch)
-deciduous add goal "Feature work" -b feature-x  # Override branch
-deciduous add goal "Universal" --no-branch       # No branch tag
-
-# Sync and export
-deciduous sync            # Export to .deciduous/web/graph-data.json
-
-# DOT export for visualizations
-deciduous dot                              # Output DOT to stdout
-deciduous dot -o graph.dot                 # Output to file
-deciduous dot --png -o graph.dot           # Generate PNG (requires graphviz)
-deciduous dot --auto --nodes 1-11          # Branch-specific filename (docs/decision-graph-{branch}.png)
-deciduous dot --roots 1,5 --png            # Filter from root nodes (BFS)
-
-# PR writeup generation
-deciduous writeup -t "PR Title"            # Generate markdown writeup
-deciduous writeup -t "Title" --nodes 1-11  # Writeup for specific nodes
-deciduous writeup --auto --nodes 1-11      # Use branch-specific PNG (best for PRs!)
-deciduous writeup --png docs/graph.png     # Explicit PNG path
-deciduous writeup --no-dot --no-test-plan  # Skip sections
-
-# Makefile shortcuts
-make goal T="Title" C=90
-make decision T="Title" C=75
-make action T="Title" C=85
-make obs T="Title" C=70
-make outcome T="Title" C=95
-make link FROM=1 TO=2 REASON="why"
-make dot NODES=1-11 PNG=1
-make writeup TITLE="PR Title" NODES=1-11
+# Branch filtering
+deciduous nodes --branch main
+deciduous nodes -b feature-auth
 ```
-
-### Confidence Levels
-
-- **90-100**: Certain, proven, tested
-- **70-89**: High confidence, standard approach
-- **50-69**: Moderate confidence, some unknowns
-- **30-49**: Experimental, might change
-- **0-29**: Speculative, likely to revisit
 
 ### Branch-Based Grouping
 
-**Nodes are automatically tagged with the current git branch.** This enables filtering by feature/PR.
-
-**Configuration** (`.deciduous/config.toml`):
+Nodes are auto-tagged with the current git branch. Configure in `.deciduous/config.toml`:
 ```toml
 [branch]
-main_branches = ["main", "master"]  # Branches not treated as "feature branches"
-auto_detect = true                    # Auto-detect branch on node creation
+main_branches = ["main", "master"]
+auto_detect = true
 ```
 
-**CLI Usage:**
+### Audit Checklist (Before Every Sync)
+
+1. Does every **outcome** link back to what caused it?
+2. Does every **action** link to why you did it?
+3. Any **dangling outcomes** without parents?
+
+### Session Start Checklist
+
 ```bash
-# Filter nodes by branch
-deciduous nodes --branch main
-deciduous nodes -b feature-auth
-
-# Override auto-detection when creating nodes
-deciduous add goal "Feature work" -b feature-x  # Force specific branch
-deciduous add goal "Universal note" --no-branch  # No branch tag
+deciduous nodes    # What decisions exist?
+deciduous edges    # How are they connected? Any gaps?
+git status         # Current state
 ```
 
-**Web UI:** Branch dropdown filter in stats bar filters all views.
+### Multi-User Sync
 
-**When to Use:**
-- Feature work: Nodes auto-grouped by branch
-- PR context: Filter to see decisions for specific PR
-- Cross-cutting: Use `--no-branch` for universal notes
+Share decisions across teammates:
 
-### Why This Matters
+```bash
+# Export your branch's decisions
+deciduous diff export --branch feature-x -o .deciduous/patches/my-feature.json
 
-1. **The user watches the graph live** - They see your reasoning as you work
-2. **Context WILL be lost** - The graph survives compaction, you don't
-3. **Retroactive logging misses details** - Log in the moment or lose nuance
-4. **Future sessions need this** - Your future self (or another session) will query this
-5. **Public accountability** - The graph is published at the live URL
+# Apply patches from teammates (idempotent)
+deciduous diff apply .deciduous/patches/*.json
 
----
+# Preview before applying
+deciduous diff apply --dry-run .deciduous/patches/teammate.json
+```
 
+PR workflow: Export patch → commit patch file → PR → teammates apply.
 ## Session Start Checklist
 
 Every new session or after context recovery, run `/context` or:

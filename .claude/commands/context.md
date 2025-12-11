@@ -99,16 +99,20 @@ BEFORE GIT PUSH → deciduous sync
 ### Quick Logging Commands
 
 ```bash
-deciduous add goal "What we're trying to do" -c 90
+# Root goal with user prompt (capture what the user asked for)
+deciduous add goal "What we're trying to do" -c 90 -p "User asked: <their request>"
+
 deciduous add action "What I'm about to implement" -c 85
 deciduous add outcome "What happened" -c 95
 deciduous link FROM TO -r "Connection reason"
 
-# Optional metadata
-deciduous add goal "Title" -c 90 -p "User prompt" -f "src/file.rs"
+# Capture prompt when user redirects mid-stream
+deciduous add action "Switching approach" -c 85 -p "User said: use X instead"
 
 deciduous sync  # Do this frequently!
 ```
+
+**When to use `--prompt`:** On root goals (always) and when user gives new direction mid-stream. Downstream nodes inherit context via edges.
 
 ---
 

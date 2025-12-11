@@ -272,6 +272,58 @@
   - Update `.claude/commands/` and `.windsurf/rules/` to mention pre-commit awareness
   - Instruct LLMs to check for hooks before committing
 
+### Editor Memories Integration
+- [ ] **Leverage Claude Code and Windsurf memories**
+  - Both editors have "memories" features that persist across sessions
+  - Could store decision graph summaries, recent goals, key patterns
+  - Auto-populate memories with recent decision context
+  - Memories could include: current goals, pending decisions, recent outcomes
+- [ ] **Claude Code memories**
+  - Detect and update `.claude/memories/` or equivalent
+  - Store project-specific decision patterns
+  - "Last session worked on goal #X, consider continuing"
+- [ ] **Windsurf memories**
+  - Already have `.windsurf/memories.md` template
+  - Enhance with dynamic decision graph summaries
+  - Auto-retrieve relevant memories when starting sessions
+- [ ] **Memory-graph sync**
+  - `deciduous memories export` - export decision summaries to memory format
+  - `deciduous memories update` - update editor memories with recent decisions
+  - Bidirectional: memories inform context recovery
+
+### Template Sync (init.rs ↔ actual files) - CRITICAL BUG
+- [ ] **FIX: `deciduous update` destroys custom content in command files**
+  - Currently `update --claude` overwrites `.claude/commands/*.md` completely
+  - This destroys all custom instructions users have added
+  - Should use section-replacement like CLAUDE.md, not full overwrite
+  - Or: init.rs templates should be comprehensive (match actual files)
+- [ ] **Auto-detect when tooling files are out of sync**
+  - When `.claude/commands/*.md`, `.windsurf/rules/*.md`, `CLAUDE.md`, or `AGENTS.md` are modified
+  - Remind/enforce updating corresponding templates in `src/init.rs`
+  - The templates in init.rs should match what's in the actual files
+- [ ] **Validation command**
+  - `deciduous validate-templates` - check if templates match actual files
+  - Warn if they've diverged
+  - Optionally auto-update init.rs from actual files
+- [ ] **Memory/hook for sync**
+  - Add to Claude Code memories: "If you modify .claude/commands or CLAUDE.md, also update src/init.rs templates"
+  - Could be a pre-commit check or a deciduous hook
+
+### Roadmap Skill & TUI Integration
+- [ ] **Claude Code skill for roadmap management**
+  - `/roadmap` skill to interact with ROADMAP.md and decision graph
+  - Show current roadmap items, their status, linked nodes
+  - Add/update roadmap items with decision graph links
+- [ ] **TUI roadmap view**
+  - New view in `deciduous tui` for browsing roadmap items
+  - Show roadmap items linked to decision graph nodes
+  - Filter by status (completed, in progress, backlog)
+  - Navigate from roadmap item → linked goal/decision nodes
+- [ ] **Roadmap-graph bidirectional links**
+  - Roadmap items can reference graph nodes by ID
+  - Graph nodes can link back to roadmap items
+  - Track completion: roadmap item is "done" when linked outcome exists
+
 ### Claude Code Hooks Integration
 - [ ] Explore using Claude Code hooks to guarantee workflow behavior
   - Claude Code supports hooks that run on various events (tool calls, messages, etc.)
@@ -338,6 +390,33 @@
   - Export to formats compatible with BI tools (Metabase, Superset, etc.)
   - Built-in charts in TUI or web viewer
   - `deciduous report` to generate analytical summaries
+
+### Automated Graph Sync Workflow
+- [ ] **Default to diff/patch workflow for multi-user state management**
+  - With multiple users coming, graph database sync should be automated by the AI
+  - AI should automatically export patches when committing decision-related work
+  - AI should automatically apply patches when pulling/syncing
+  - Remove the manual friction of remembering to export/apply
+- [ ] **Auto-export on commit**
+  - Before any commit that touched decision-related code, auto-run `deciduous diff export`
+  - Use branch-specific patch files (e.g., `.deciduous/patches/$(whoami)-$(branch).json`)
+  - Include patch file in the commit automatically
+- [ ] **Auto-apply on pull**
+  - After `git pull`, detect new `.deciduous/patches/*.json` files
+  - Automatically apply them (idempotent - safe to re-apply)
+  - Report: "Applied 3 patches from teammates: alice-feature.json, bob-fix.json, carol-refactor.json"
+- [ ] **Git hooks for automation**
+  - `post-commit` hook: auto-export current branch's decisions
+  - `post-merge` hook: auto-apply any new patches
+  - `pre-push` hook: ensure graph is synced and patches are committed
+- [ ] **Claude/Windsurf workflow updates**
+  - Update tooling templates to include auto-sync behavior
+  - AI should do this automatically, not wait for user to ask
+  - "Before pushing, I'll sync the decision graph..." should be default behavior
+- [ ] **Conflict resolution**
+  - When patches have conflicting nodes, use change_id to merge intelligently
+  - Prefer latest timestamp when edges conflict
+  - Interactive resolution mode if needed: `deciduous diff resolve`
 
 ### Documentation Restructure
 - [ ] Rethink the `docs/` folder organization

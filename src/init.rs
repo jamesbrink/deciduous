@@ -60,6 +60,8 @@ jobs:
 "#;
 
 /// Templates embedded at compile time
+/// NOTE: These templates should match the actual files in .claude/commands/
+/// The source of truth is the actual files - update these when those change
 const DECISION_MD: &str = r#"---
 description: Manage decision graph - track algorithm choices and reasoning
 allowed-tools: Bash(deciduous:*)
@@ -74,7 +76,7 @@ argument-hint: <action> [args...]
 
 | You're doing this... | Log this type | Command |
 |---------------------|---------------|---------|
-| Starting a new feature | `goal` | `/decision add goal "Add user auth"` |
+| Starting a new feature | `goal` **with -p** | `/decision add goal "Add user auth" -p "user request"` |
 | Choosing between approaches | `decision` | `/decision add decision "Choose auth method"` |
 | Considering an option | `option` | `/decision add option "JWT tokens"` |
 | About to write code | `action` | `/decision add action "Implementing JWT"` |
@@ -107,38 +109,80 @@ Based on $ARGUMENTS:
 - `--no-branch` - Skip branch auto-detection
 - `--commit <hash>` - Link to a git commit
 
+## CRITICAL: Capture User Prompts When Semantically Meaningful
+
+**Use `-p` / `--prompt` when a user request triggers new work or changes direction.** Don't add prompts to every node - only when a prompt is the actual catalyst.
+
+```bash
+# New feature request - capture the prompt on the goal
+deciduous add goal "Add auth" -c 90 -p "User asked: add login to the app"
+
+# Downstream work links back - no prompt needed (it flows via edges)
+deciduous add decision "Choose auth method" -c 75
+deciduous link <goal_id> <decision_id> -r "Deciding approach"
+
+# BUT if the user gives new direction mid-stream, capture that too
+deciduous add action "Switch to OAuth" -c 85 -p "User said: use OAuth instead"
+```
+
+**When to capture prompts:**
+- Root `goal` nodes: YES - the original request
+- Major direction changes: YES - when user redirects the work
+- Routine downstream nodes: NO - they inherit context via edges
+
+Prompts are viewable in the TUI detail panel (`deciduous tui`) and flow through the graph via connections.
+
 ## Branch-Based Grouping
 
-**Nodes are automatically tagged with the current git branch.**
+**Nodes are automatically tagged with the current git branch.** This enables filtering by feature/PR.
 
-### Configuration
+### How It Works
+- When you create a node, the current git branch is stored in `metadata_json`
+- Configure which branches are "main" in `.deciduous/config.toml`:
+  ```toml
+  [branch]
+  main_branches = ["main", "master"]  # Branches not treated as "feature branches"
+  auto_detect = true                    # Auto-detect branch on node creation
+  ```
+- Nodes on feature branches (anything not in `main_branches`) can be grouped/filtered
 
-Edit `.deciduous/config.toml`:
-```toml
-[branch]
-main_branches = ["main", "master"]  # Branches not treated as feature branches
-auto_detect = true                    # Auto-detect branch on node creation
-```
-
-### CLI Commands
+### CLI Filtering
 ```bash
-# Filter nodes by branch
+# Show only nodes from specific branch
 deciduous nodes --branch main
-deciduous nodes -b feature-auth
+deciduous nodes --branch feature-auth
+deciduous nodes -b my-feature
 
-# Override auto-detection
+# Override auto-detection when creating nodes
 deciduous add goal "Feature work" -b feature-x  # Force specific branch
-deciduous add goal "Universal" --no-branch       # No branch tag
+deciduous add goal "Universal note" --no-branch  # No branch tag
 ```
 
-### Web UI
-Branch dropdown filter in stats bar filters all views.
+### Web UI Branch Filter
+The graph viewer shows a branch dropdown in the stats bar:
+- "All branches" shows everything
+- Select a specific branch to filter all views (Chains, Timeline, Graph, DAG)
+
+### When to Use Branch Grouping
+- **Feature work**: Nodes created on `feature-auth` branch auto-grouped
+- **PR context**: Filter to see only decisions for a specific PR
+- **Cross-cutting concerns**: Use `--no-branch` for universal notes
+- **Retrospectives**: Filter by branch to see decision history per feature
 
 ### Create Edges
 - `link <from> <to> [reason]` -> `deciduous link <from> <to> -r "<reason>"`
 
 ### Sync Graph
 - `sync` -> `deciduous sync`
+
+### Multi-User Sync (Diff/Patch)
+- `diff export -o <file>` -> `deciduous diff export -o <file>` (export nodes as patch)
+- `diff export --nodes 1-10 -o <file>` -> export specific nodes
+- `diff export --branch feature-x -o <file>` -> export nodes from branch
+- `diff apply <file>` -> `deciduous diff apply <file>` (apply patch, idempotent)
+- `diff apply --dry-run <file>` -> preview without applying
+- `diff status` -> `deciduous diff status` (list patches in .deciduous/patches/)
+- `migrate` -> `deciduous migrate` (add change_id columns for sync)
 
 ### Export & Visualization
 - `dot` -> `deciduous dot` (output DOT to stdout)
@@ -169,37 +213,109 @@ Branch dropdown filter in stats bar filters all views.
 | `blocks` | Preventing progress |
 | `enables` | Makes something possible |
 
-## ⚠️ CRITICAL: Maintain Connections
+## Graph Integrity - CRITICAL
 
-**The graph's value is in its CONNECTIONS, not just nodes.**
+**Every node MUST be logically connected.** Floating nodes break the graph's value.
 
-| When you create... | IMMEDIATELY link to... |
-|-------------------|------------------------|
-| `outcome` | The action/goal it resolves |
-| `action` | The goal/decision that spawned it |
-| `option` | Its parent decision |
-| `observation` | Related goal/action |
+### Connection Rules
+| Node Type | MUST connect to | Example |
+|-----------|----------------|---------|
+| `outcome` | The action/goal it resolves | "JWT working" → links FROM "Implementing JWT" |
+| `action` | The decision/goal that spawned it | "Implementing JWT" → links FROM "Add auth" |
+| `option` | Its parent decision | "Use JWT" → links FROM "Choose auth method" |
+| `observation` | Related goal/action/decision | "Found existing code" → links TO relevant node |
+| `decision` | Parent goal (if any) | "Choose auth" → links FROM "Add auth feature" |
+| `goal` | Can be a root (no parent needed) | Root goals are valid orphans |
 
-**Root `goal` nodes are the ONLY valid orphans.**
-
-### Audit Checklist (Before Every Sync)
-
-1. Does every **outcome** link to what caused it?
+### Audit Checklist
+Ask yourself after creating nodes:
+1. Does every **outcome** link back to what caused it?
 2. Does every **action** link to why you did it?
-3. Any **dangling outcomes** without parents?
+3. Does every **option** link to its decision?
+4. Are there **dangling outcomes** with no parent action/goal?
+
+### Find Disconnected Nodes
+```bash
+# List nodes with no incoming edges (potential orphans)
+deciduous edges | cut -d'>' -f2 | cut -d' ' -f2 | sort -u > /tmp/has_parent.txt
+deciduous nodes | tail -n+3 | awk '{print $1}' | while read id; do
+  grep -q "^$id$" /tmp/has_parent.txt || echo "CHECK: $id"
+done
+```
+Note: Root goals are VALID orphans. Outcomes/actions/options usually are NOT.
+
+### Fix Missing Connections
+```bash
+deciduous link <parent_id> <child_id> -r "Retroactive connection - <why>"
+```
+
+### When to Audit
+- Before every `deciduous sync`
+- After creating multiple nodes quickly
+- At session end
+- When the web UI graph looks disconnected
+
+## Multi-User Sync
+
+**Problem**: Multiple users work on the same codebase, each with a local `.deciduous/deciduous.db` (gitignored). How to share decisions?
+
+**Solution**: jj-inspired dual-ID model. Each node has:
+- `id` (integer): Local database primary key, different per machine
+- `change_id` (UUID): Globally unique, stable across all databases
+
+### Export Workflow
+```bash
+# Export nodes from your branch as a patch file
+deciduous diff export --branch feature-x -o .deciduous/patches/alice-feature.json
+
+# Or export specific node IDs
+deciduous diff export --nodes 172-188 -o .deciduous/patches/alice-feature.json --author alice
+```
+
+### Apply Workflow
+```bash
+# Apply patches from teammates (idempotent - safe to re-apply)
+deciduous diff apply .deciduous/patches/*.json
+
+# Preview what would change
+deciduous diff apply --dry-run .deciduous/patches/bob-refactor.json
+```
+
+### PR Workflow
+1. Create nodes locally while working
+2. Export: `deciduous diff export --branch my-feature -o .deciduous/patches/my-feature.json`
+3. Commit the patch file (NOT the database)
+4. Open PR with patch file included
+5. Teammates pull and apply: `deciduous diff apply .deciduous/patches/my-feature.json`
+6. **Idempotent**: Same patch applied twice = no duplicates
+
+### Patch Format (JSON)
+```json
+{
+  "version": "1.0",
+  "author": "alice",
+  "branch": "feature/auth",
+  "nodes": [{ "change_id": "uuid...", "title": "...", ... }],
+  "edges": [{ "from_change_id": "uuid1", "to_change_id": "uuid2", ... }]
+}
+```
 
 ## The Rule
 
 ```
 LOG BEFORE YOU CODE, NOT AFTER.
-CONNECT EVERY NODE IMMEDIATELY.
-AUDIT BEFORE SYNC.
+CONNECT EVERY NODE TO ITS PARENT.
+AUDIT FOR ORPHANS REGULARLY.
+SYNC BEFORE YOU PUSH.
+EXPORT PATCHES FOR YOUR TEAMMATES.
 ```
+
+**Live graph**: https://notactuallytreyanastasio.github.io/deciduous/
 "#;
 
 const CONTEXT_MD: &str = r#"---
 description: Recover context from decision graph and recent activity - USE THIS ON SESSION START
-allowed-tools: Bash(deciduous:*, git:*)
+allowed-tools: Bash(deciduous:*, git:*, cat:*, tail:*)
 argument-hint: [focus-area]
 ---
 
@@ -223,7 +339,30 @@ deciduous edges
 deciduous commands
 ```
 
-**Branch-scoped context**: If on a feature branch, filter to see only relevant decisions.
+**Branch-scoped context**: If working on a feature branch, filter nodes to see only decisions relevant to this branch. Main branch nodes are tagged with `[branch: main]`.
+
+## Step 1.5: Audit Graph Integrity
+
+**CRITICAL: Check that all nodes are logically connected.**
+
+```bash
+# Find nodes with no incoming edges (potential missing connections)
+deciduous edges | cut -d'>' -f2 | cut -d' ' -f2 | sort -u > /tmp/has_parent.txt
+deciduous nodes | tail -n+3 | awk '{print $1}' | while read id; do
+  grep -q "^$id$" /tmp/has_parent.txt || echo "CHECK: $id"
+done
+```
+
+**Review each flagged node:**
+- Root `goal` nodes are VALID without parents
+- `outcome` nodes MUST link back to their action/goal
+- `action` nodes MUST link to their parent goal/decision
+- `option` nodes MUST link to their parent decision
+
+**Fix missing connections:**
+```bash
+deciduous link <parent_id> <child_id> -r "Retroactive connection - <reason>"
+```
 
 ## Step 2: Check Git State
 
@@ -233,13 +372,29 @@ git log --oneline -10
 git diff --stat
 ```
 
+## Step 3: Check Session Log
+
+```bash
+cat git.log | tail -30
+```
+
 ## After Gathering Context, Report:
 
 1. **Current branch** and pending changes
-2. **Recent decisions** (especially pending/active ones)
-3. **Last actions** from git log and command log
-4. **Open questions** or unresolved observations
-5. **Suggested next steps**
+2. **Branch-specific decisions** (filter by branch if on feature branch)
+3. **Recent decisions** (especially pending/active ones)
+4. **Last actions** from git log and command log
+5. **Open questions** or unresolved observations
+6. **Suggested next steps**
+
+### Branch Configuration
+
+Check `.deciduous/config.toml` for branch settings:
+```toml
+[branch]
+main_branches = ["main", "master"]  # Which branches are "main"
+auto_detect = true                    # Auto-detect branch on node creation
+```
 
 ---
 
@@ -248,21 +403,42 @@ git diff --stat
 After recovering context, you MUST follow the logging workflow:
 
 ```
-EVERY USER REQUEST -> Log goal/decision first
-BEFORE CODE CHANGES -> Log action
-AFTER CHANGES -> Log outcome, link nodes
-BEFORE GIT PUSH -> deciduous sync
+EVERY USER REQUEST → Log goal/decision first
+BEFORE CODE CHANGES → Log action
+AFTER CHANGES → Log outcome, link nodes
+BEFORE GIT PUSH → deciduous sync
 ```
+
+**The user is watching the graph live.** Log as you go, not after.
 
 ### Quick Logging Commands
 
 ```bash
-deciduous add goal "What we're trying to do" -c 90
+# Root goal with user prompt (capture what the user asked for)
+deciduous add goal "What we're trying to do" -c 90 -p "User asked: <their request>"
+
 deciduous add action "What I'm about to implement" -c 85
 deciduous add outcome "What happened" -c 95
 deciduous link FROM TO -r "Connection reason"
+
+# Capture prompt when user redirects mid-stream
+deciduous add action "Switching approach" -c 85 -p "User said: use X instead"
+
 deciduous sync  # Do this frequently!
 ```
+
+**When to use `--prompt`:** On root goals (always) and when user gives new direction mid-stream. Downstream nodes inherit context via edges.
+
+---
+
+## Focus Areas
+
+If $ARGUMENTS specifies a focus, prioritize context for:
+
+- **auth**: Authentication-related decisions
+- **ui** / **graph**: UI and graph viewer state
+- **cli**: Command-line interface changes
+- **api**: API endpoints and data structures
 
 ---
 
@@ -270,29 +446,65 @@ deciduous sync  # Do this frequently!
 
 ```
 SESSION START
-    |
-Run /context -> See past decisions
-    |
-DO WORK -> Log BEFORE each action
-    |
-AFTER CHANGES -> Log outcomes, observations
-    |
-BEFORE PUSH -> deciduous sync
-    |
-PUSH -> Graph persists
-    |
-SESSION END -> Graph survives
-    |
+    ↓
+Run /context → See past decisions
+    ↓
+AUDIT → Fix any orphan nodes first!
+    ↓
+DO WORK → Log BEFORE each action
+    ↓
+CONNECT → Link new nodes immediately
+    ↓
+AFTER CHANGES → Log outcomes, observations
+    ↓
+AUDIT AGAIN → Any new orphans?
+    ↓
+BEFORE PUSH → deciduous sync
+    ↓
+PUSH → Live graph updates
+    ↓
+SESSION END → Final audit
+    ↓
 (repeat)
 ```
 
+**Live graph**: https://notactuallytreyanastasio.github.io/deciduous/
+
 ---
+
+## Multi-User Sync
+
+If working in a team, check for and apply patches from teammates:
+
+```bash
+# Check for unapplied patches
+deciduous diff status
+
+# Apply all patches (idempotent - safe to run multiple times)
+deciduous diff apply .deciduous/patches/*.json
+
+# Preview before applying
+deciduous diff apply --dry-run .deciduous/patches/teammate-feature.json
+```
+
+Before pushing your branch, export your decisions for teammates:
+
+```bash
+# Export your branch's decisions as a patch
+deciduous diff export --branch $(git rev-parse --abbrev-ref HEAD) \
+  -o .deciduous/patches/$(whoami)-$(git rev-parse --abbrev-ref HEAD).json
+
+# Commit the patch file
+git add .deciduous/patches/
+```
 
 ## Why This Matters
 
 - Context loss during compaction loses your reasoning
 - The graph survives - query it early, query it often
 - Retroactive logging misses details - log in the moment
+- The user sees the graph live - show your work
+- Patches share reasoning with teammates
 "#;
 
 const CLEANUP_WORKFLOW: &str = r#"name: Cleanup Decision Graph PNGs
@@ -394,11 +606,34 @@ AUDIT regularly -> Check for missing connections
 
 | Trigger | Log Type | Example |
 |---------|----------|---------|
-| User asks for a new feature | `goal` | "Add dark mode" |
+| User asks for a new feature | `goal` **with -p** | "Add dark mode" |
 | Choosing between approaches | `decision` | "Choose state management" |
 | About to write/edit code | `action` | "Implementing Redux store" |
 | Something worked or failed | `outcome` | "Redux integration successful" |
 | Notice something interesting | `observation` | "Existing code uses hooks" |
+
+### CRITICAL: Capture User Prompts When Semantically Meaningful
+
+**Use `-p` / `--prompt` when a user request triggers new work or changes direction.** Don't add prompts to every node - only when a prompt is the actual catalyst.
+
+```bash
+# New feature request - capture the prompt on the goal
+deciduous add goal "Add auth" -c 90 -p "User asked: add login to the app"
+
+# Downstream work links back - no prompt needed (it flows via edges)
+deciduous add decision "Choose auth method" -c 75
+deciduous link <goal_id> <decision_id> -r "Deciding approach"
+
+# BUT if the user gives new direction mid-stream, capture that too
+deciduous add action "Switch to OAuth" -c 85 -p "User said: use OAuth instead"
+```
+
+**When to capture prompts:**
+- Root `goal` nodes: YES - the original request
+- Major direction changes: YES - when user redirects the work
+- Routine downstream nodes: NO - they inherit context via edges
+
+Prompts are viewable in the TUI detail panel (`deciduous tui`) and flow through the graph via connections.
 
 ### ⚠️ CRITICAL: Maintain Connections
 
@@ -416,14 +651,14 @@ AUDIT regularly -> Check for missing connections
 ### Quick Commands
 
 ```bash
-deciduous add goal "Title" -c 90
+deciduous add goal "Title" -c 90 -p "User's original request"
 deciduous add action "Title" -c 85
 deciduous link FROM TO -r "reason"  # DO THIS IMMEDIATELY!
 deciduous serve   # View live (auto-refreshes every 30s)
 deciduous sync    # Export for static hosting
 
 # Optional metadata
-# -p, --prompt "..."   Store the user prompt
+# -p, --prompt "..."   Store the user prompt (use when semantically meaningful)
 # -f, --files "a.rs,b.rs"   Associate files
 # -b, --branch <name>   Git branch (auto-detected)
 
@@ -495,13 +730,38 @@ This project uses Deciduous for persistent decision tracking. You MUST log decis
 ## MANDATORY: Log These Events
 
 <logging_triggers>
-- **New feature request** → `deciduous add goal "Feature name" -c 90`
-- **Choosing between approaches** → `deciduous add decision "What to decide" -c 75`
+- **New feature request** → `deciduous add goal "Feature name" -c 90 -p "user's request"`
+- **Choosing between approaches** → `deciduous add decision "What to decide" -c 75 -p "user asked"`
 - **Considering an option** → `deciduous add option "Option name" -c 70`
 - **About to write code** → `deciduous add action "What you're implementing" -c 85`
 - **Noticed something** → `deciduous add observation "What you found" -c 80`
 - **Something completed** → `deciduous add outcome "Result" -c 95`
 </logging_triggers>
+
+## CRITICAL: Capture User Prompts When Semantically Meaningful
+
+<prompt_capture>
+**Use `-p` / `--prompt` when a user request triggers new work or changes direction.** Don't add prompts to every node - only when a prompt is the actual catalyst.
+
+```bash
+# New feature request - capture the prompt on the goal
+deciduous add goal "Add auth" -c 90 -p "User asked: add login to the app"
+
+# Downstream work links back - no prompt needed (it flows via edges)
+deciduous add decision "Choose auth method" -c 75
+deciduous link <goal_id> <decision_id> -r "Deciding approach"
+
+# BUT if the user gives new direction mid-stream, capture that too
+deciduous add action "Switch to OAuth" -c 85 -p "User said: use OAuth instead"
+```
+
+**When to capture prompts:**
+- Root `goal` nodes: YES - the original request
+- Major direction changes: YES - when user redirects the work
+- Routine downstream nodes: NO - they inherit context via edges
+
+Prompts are viewable in the TUI detail panel (`deciduous tui`) and flow through the graph via connections.
+</prompt_capture>
 
 ## MANDATORY: The Feedback Loop
 
@@ -736,11 +996,34 @@ AUDIT regularly -> Check for missing connections
 
 | Trigger | Log Type | Example |
 |---------|----------|---------|
-| User asks for a new feature | `goal` | "Add dark mode" |
+| User asks for a new feature | `goal` **with -p** | "Add dark mode" |
 | Choosing between approaches | `decision` | "Choose state management" |
 | About to write/edit code | `action` | "Implementing Redux store" |
 | Something worked or failed | `outcome` | "Redux integration successful" |
 | Notice something interesting | `observation` | "Existing code uses hooks" |
+
+### CRITICAL: Capture User Prompts When Semantically Meaningful
+
+**Use `-p` / `--prompt` when a user request triggers new work or changes direction.** Don't add prompts to every node - only when a prompt is the actual catalyst.
+
+```bash
+# New feature request - capture the prompt on the goal
+deciduous add goal "Add auth" -c 90 -p "User asked: add login to the app"
+
+# Downstream work links back - no prompt needed (it flows via edges)
+deciduous add decision "Choose auth method" -c 75
+deciduous link <goal_id> <decision_id> -r "Deciding approach"
+
+# BUT if the user gives new direction mid-stream, capture that too
+deciduous add action "Switch to OAuth" -c 85 -p "User said: use OAuth instead"
+```
+
+**When to capture prompts:**
+- Root `goal` nodes: YES - the original request
+- Major direction changes: YES - when user redirects the work
+- Routine downstream nodes: NO - they inherit context via edges
+
+Prompts are viewable in the TUI detail panel (`deciduous tui`) and flow through the graph via connections.
 
 ### ⚠️ CRITICAL: Maintain Connections
 
@@ -1018,7 +1301,11 @@ fn replace_config_md_section(path: &Path, section_content: &str, file_name: &str
 
         if let Some(start) = start_idx {
             // Find the end of our section (next ## heading after our section starts)
-            let after_marker = start + 5; // Skip past "## " at minimum
+            // Need to skip past the marker properly - find the newline after it
+            let after_marker = existing[start..]
+                .find('\n')
+                .map(|i| start + i)
+                .unwrap_or(start + 10);
             let end_idx = existing[after_marker..]
                 .find(section_end_pattern)
                 .map(|i| after_marker + i + 1) // +1 to keep the newline before next section

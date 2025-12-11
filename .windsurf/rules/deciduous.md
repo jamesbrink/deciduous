@@ -13,13 +13,38 @@ This project uses Deciduous for persistent decision tracking. You MUST log decis
 ## MANDATORY: Log These Events
 
 <logging_triggers>
-- **New feature request** → `deciduous add goal "Feature name" -c 90`
+- **New feature request** → `deciduous add goal "Feature name" -c 90 -p "user's request"`
 - **Choosing between approaches** → `deciduous add decision "What to decide" -c 75`
 - **Considering an option** → `deciduous add option "Option name" -c 70`
 - **About to write code** → `deciduous add action "What you're implementing" -c 85`
 - **Noticed something** → `deciduous add observation "What you found" -c 80`
 - **Something completed** → `deciduous add outcome "Result" -c 95`
 </logging_triggers>
+
+## CRITICAL: Capture User Prompts When Semantically Meaningful
+
+<prompt_capture>
+**Use `-p` / `--prompt` when a user request triggers new work or changes direction.** Don't add prompts to every node - only when a prompt is the actual catalyst.
+
+```bash
+# New feature request - capture the prompt on the goal
+deciduous add goal "Add auth" -c 90 -p "User asked: add login to the app"
+
+# Downstream work links back - no prompt needed (it flows via edges)
+deciduous add decision "Choose auth method" -c 75
+deciduous link <goal_id> <decision_id> -r "Deciding approach"
+
+# BUT if the user gives new direction mid-stream, capture that too
+deciduous add action "Switch to OAuth" -c 85 -p "User said: use OAuth instead"
+```
+
+**When to capture prompts:**
+- Root `goal` nodes: YES - the original request
+- Major direction changes: YES - when user redirects the work
+- Routine downstream nodes: NO - they inherit context via edges
+
+Prompts are viewable in the TUI detail panel (`deciduous tui`) and flow through the graph via connections.
+</prompt_capture>
 
 ## MANDATORY: The Feedback Loop
 
@@ -34,21 +59,21 @@ This project uses Deciduous for persistent decision tracking. You MUST log decis
 
 <commands>
 ```bash
-# Add nodes (with confidence 0-100)
-deciduous add goal "Title" -c 90
+# Add nodes (with confidence 0-100, -p when semantically meaningful)
+deciduous add goal "Title" -c 90 -p "User's original request"
 deciduous add decision "Title" -c 75
 deciduous add action "Title" -c 85
 deciduous add outcome "Title" -c 95
 deciduous add observation "Title" -c 80
 
 # Optional metadata flags for nodes
-# -p, --prompt "..."   Store the user prompt that triggered this
+# -p, --prompt "..."   Store the user prompt (use when semantically meaningful)
 # -f, --files "a.rs,b.rs"   Associate files with this node
 # -b, --branch <name>   Git branch (auto-detected by default)
 # --no-branch   Skip branch auto-detection
 # --commit <hash>   Link to a git commit
 
-# Example with prompt and files
+# Example with prompt and files on root goal
 deciduous add goal "Add auth" -c 90 -p "User asked: add login feature" -f "src/auth.rs,src/routes.rs"
 
 # Filter by branch

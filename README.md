@@ -93,11 +93,12 @@ Status: in_progress
 Claude logs decisions in real-time:
 
 ```bash
-# Starting a new feature
-deciduous add goal "Add rate limiting" -c 90
+# Starting a new feature - capture the user's prompt on the root goal
+deciduous add goal "Add rate limiting" -c 90 -p "User asked: can we add rate limiting to the API?"
 
-# Making a choice
+# Making a choice (downstream nodes don't need prompts - they flow via edges)
 deciduous add decision "Choose rate limiter approach" -c 75
+deciduous link 20 21 -r "Deciding implementation"
 deciduous add option "Redis-based" -c 80
 deciduous add option "In-memory with sliding window" -c 70
 
@@ -105,10 +106,15 @@ deciduous add option "In-memory with sliding window" -c 70
 deciduous add action "Implementing Redis rate limiter" -c 85
 deciduous link 21 23 --edge-type chosen -r "Scales across instances"
 
+# If user gives new direction mid-stream, capture that prompt too
+deciduous add action "Switch to token bucket" -c 85 -p "User said: actually use token bucket algorithm"
+
 # Recording outcome
 deciduous add outcome "Rate limiting working in prod" -c 95
 deciduous link 23 24 -r "Implementation complete"
 ```
+
+**When to use `--prompt`:** Capture user prompts on root goals and when the user redirects work mid-stream. Routine downstream nodes inherit context via edges.
 
 ### Before Push
 
@@ -292,8 +298,9 @@ deciduous add action "Title" -c 85
 deciduous add outcome "Title" -c 95
 deciduous add observation "Title" -c 70
 
-# Optional metadata
-deciduous add goal "Title" -c 90 -p "User prompt" -f "src/file.rs"
+# Optional metadata (use -p when semantically meaningful)
+deciduous add goal "Title" -c 90 -p "User prompt" -f "src/file.rs"  # Root goal with prompt
+deciduous add action "Title" -c 85 -p "User redirect"               # When user changes direction
 deciduous add goal "Title" -b feature-x    # Override branch
 deciduous add goal "Title" --no-branch     # No branch tag
 

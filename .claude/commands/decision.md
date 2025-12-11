@@ -12,7 +12,7 @@ argument-hint: <action> [args...]
 
 | You're doing this... | Log this type | Command |
 |---------------------|---------------|---------|
-| Starting a new feature | `goal` | `/decision add goal "Add user auth"` |
+| Starting a new feature | `goal` **with -p** | `/decision add goal "Add user auth" -p "user request"` |
 | Choosing between approaches | `decision` | `/decision add decision "Choose auth method"` |
 | Considering an option | `option` | `/decision add option "JWT tokens"` |
 | About to write code | `action` | `/decision add action "Implementing JWT"` |
@@ -44,6 +44,29 @@ Based on $ARGUMENTS:
 - `-b, --branch <name>` - Git branch (auto-detected by default)
 - `--no-branch` - Skip branch auto-detection
 - `--commit <hash>` - Link to a git commit
+
+## CRITICAL: Capture User Prompts When Semantically Meaningful
+
+**Use `-p` / `--prompt` when a user request triggers new work or changes direction.** Don't add prompts to every node - only when a prompt is the actual catalyst.
+
+```bash
+# New feature request - capture the prompt on the goal
+deciduous add goal "Add auth" -c 90 -p "User asked: add login to the app"
+
+# Downstream work links back - no prompt needed (it flows via edges)
+deciduous add decision "Choose auth method" -c 75
+deciduous link <goal_id> <decision_id> -r "Deciding approach"
+
+# BUT if the user gives new direction mid-stream, capture that too
+deciduous add action "Switch to OAuth" -c 85 -p "User said: use OAuth instead"
+```
+
+**When to capture prompts:**
+- Root `goal` nodes: YES - the original request
+- Major direction changes: YES - when user redirects the work
+- Routine downstream nodes: NO - they inherit context via edges
+
+Prompts are viewable in the TUI detail panel (`deciduous tui`) and flow through the graph via connections.
 
 ## Branch-Based Grouping
 

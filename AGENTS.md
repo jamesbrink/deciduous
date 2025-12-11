@@ -20,13 +20,34 @@ ALWAYS → Sync frequently so the live graph updates
 
 | Trigger | Log Type | Example |
 |---------|----------|---------|
-| User asks for a new feature | `goal` | "Add dark mode to UI" |
+| User asks for a new feature | `goal` **with --prompt** | "Add dark mode to UI" |
 | You're choosing between approaches | `decision` | "Choose state management approach" |
 | You identify multiple ways to do something | `option` (for each) | "Option A: Redux", "Option B: Context" |
 | You're about to write/edit code | `action` | "Implementing Redux store" |
 | You notice something interesting | `observation` | "Existing code uses hooks pattern" |
 | Something worked or failed | `outcome` | "Redux integration successful" |
 | You complete a git commit | `action` with `--commit` | Include the commit hash |
+
+### CRITICAL: Capture User Prompts When Semantically Meaningful
+
+**Use `--prompt` / `-p` when a user request triggers new work or changes direction.** Don't add prompts to every node - only when a prompt is the actual catalyst.
+
+```bash
+# New feature request - capture the prompt on the goal
+deciduous add goal "Add dark mode" -c 90 -p "User asked: can you add a dark mode toggle?"
+
+# Downstream work links back - no prompt needed (it flows via edges)
+deciduous add decision "Choose theme storage" -c 75
+deciduous link <goal_id> <decision_id> -r "Deciding implementation"
+
+# BUT if the user gives new direction mid-stream, capture that too
+deciduous add action "Switch to CSS variables" -c 85 -p "User said: use CSS variables instead"
+```
+
+**When to capture prompts:**
+- Root `goal` nodes: YES - the original request
+- Major direction changes: YES - when user redirects the work
+- Routine downstream nodes: NO - they inherit context via edges
 
 ### The Loop - Follow This EVERY Time
 
@@ -62,8 +83,8 @@ ALWAYS → Sync frequently so the live graph updates
 ### Quick Commands
 
 ```bash
-# Log nodes (use -c/--confidence 0-100)
-deciduous add goal "Title" -c 90
+# Log nodes (use -c/--confidence 0-100, -p/--prompt when semantically meaningful)
+deciduous add goal "Title" -c 90 -p "User's original request here"
 deciduous add decision "Title" -c 75
 deciduous add action "Title" -c 85
 deciduous add observation "Title" -c 70
