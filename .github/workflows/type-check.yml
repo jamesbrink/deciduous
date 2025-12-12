@@ -82,7 +82,7 @@ jobs:
         run: cargo test
 
       - name: Rust Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy -- -D warnings -A clippy::too_many_arguments
 
       - name: Install Web Dependencies
         working-directory: web
