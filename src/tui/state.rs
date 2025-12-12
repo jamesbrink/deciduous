@@ -535,16 +535,6 @@ mod proptests {
     use super::*;
     use proptest::prelude::*;
 
-    // Strategy to generate valid node IDs (positive i32)
-    fn node_id() -> impl Strategy<Value = i32> {
-        1..=1000i32
-    }
-
-    // Strategy to generate list sizes
-    fn list_len() -> impl Strategy<Value = usize> {
-        0..=100usize
-    }
-
     // Strategy for selection index and max value
     fn index_and_max() -> impl Strategy<Value = (usize, usize)> {
         (0..=1000usize).prop_flat_map(|max| (0..=max, Just(max)))
