@@ -1,11 +1,11 @@
 [
   {
-    "hash": "b84cde4f36658dce0d6b4d4143dc7bebb6c6e918",
-    "short_hash": "b84cde4",
-    "author": "Bobby Nathan",
-    "date": "2025-12-12T17:58:37-05:00",
-    "message": "feat: add opencode editor support",
-    "files_changed": 2
+    "hash": "e2e7a6cfc67025b56bd46dc7383a9890b47b43ae",
+    "short_hash": "e2e7a6c",
+    "author": "Bobby Grayson",
+    "date": "2025-12-12T17:59:09-05:00",
+    "message": "Merge pull request #22 from notactuallytreyanastasio/feat/opencode-support\n\nfeat: add opencode editor support",
+    "files_changed": 0
   },
   {
     "hash": "6faecb3f35984ea7efea9d3edd26955324cf4484",
