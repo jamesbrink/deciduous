@@ -116,6 +116,9 @@
 - [ ] **DAG view improvements** (currently disabled)
   - Better hierarchical layout algorithm
   - Zoom and pan controls
+  - Snap DAG by recency - filter to most recently touched branches/goals
+  - Show subgraphs that have had new connections written recently
+  - "Last 24h" / "Last week" / "This branch" quick filters
 - [ ] **Settings system** (partially done)
   - [x] `.deciduous/config.toml` exists with branch settings
   - [ ] Timeline order default (newest-first vs oldest-first)
