@@ -591,6 +591,17 @@
   - Expose deciduous as an MCP (Model Context Protocol) server
   - Allow Claude Desktop users to interact with decision graphs
   - Not everyone uses CLI or Claude Code - meet users where they are
+- [ ] **Consider ACP (Agent Client Protocol) integration**
+  - [Symposium ACP SDK](https://github.com/symposium-dev/symposium-acp) - Rust SDK for ACP
+  - ACP standardizes agent-client communication (complementary to MCP)
+  - Potential integration approaches:
+    - **Proxy component**: Intercept agent communications, auto-log decisions
+    - **Base agent**: Implement deciduous as an ACP-compliant agent
+    - **Conductor integration**: Decision graph as middleware in proxy chains
+  - Benefits:
+    - Automatic decision capture without manual logging
+    - Works with any ACP-compatible editor/agent
+    - Composable architecture - add/remove decision tracking dynamically
 - [ ] **Core MCP tools**
   - `add_node` - create goal/decision/action/outcome/observation nodes
   - `link_nodes` - connect nodes with edges
