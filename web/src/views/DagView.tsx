@@ -124,6 +124,10 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains, gitHistory 
     setExpandInputValue('');
   }, [goalChains.length]);
 
+  const handleShowLess = useCallback((count: number = 1) => {
+    setRecentChainCount(prev => Math.max(prev - count, 1));
+  }, []);
+
   const handleExpandSubmit = useCallback(() => {
     const num = parseInt(expandInputValue, 10);
     if (num > 0) {
@@ -314,7 +318,7 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains, gitHistory 
       .attr('x', d => (g.node(d) as DagreNodeData).width / 2)
       .attr('y', 38)
       .attr('text-anchor', 'middle')
-      .attr('fill', '#eee')
+      .attr('fill', '#24292f')
       .attr('font-size', '12px')
       .text(d => {
         const nodeData = (g.node(d) as DagreNodeData).node;
@@ -339,20 +343,44 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains, gitHistory 
         </div>
 
         <div style={styles.topBarCenter}>
-          {viewMode === 'recent' && hiddenChainCount > 0 && (
+          {viewMode === 'recent' && (
             <>
+              {/* -1 button - disabled when only 1 chain shown */}
+              <button
+                onClick={() => handleShowLess(1)}
+                style={{
+                  ...styles.topBarBtnDanger,
+                  ...(recentChainCount <= 1 ? styles.topBarBtnDisabled : {}),
+                }}
+                disabled={recentChainCount <= 1}
+                title={recentChainCount <= 1 ? "Already showing minimum" : "Show one fewer goal chain"}
+              >
+                −1 Chain
+              </button>
+
+              {/* +1 button - disabled when all chains shown */}
               <button
                 onClick={() => handleShowMore(1)}
-                style={styles.topBarBtn}
-                title="Show one more goal chain"
+                style={{
+                  ...styles.topBarBtn,
+                  ...(hiddenChainCount <= 0 ? styles.topBarBtnDisabled : {}),
+                }}
+                disabled={hiddenChainCount <= 0}
+                title={hiddenChainCount <= 0 ? "All chains shown" : "Show one more goal chain"}
               >
                 +1 Chain
               </button>
+
+              {/* +N button - disabled when all chains shown */}
               {!expandInputVisible ? (
                 <button
                   onClick={() => setExpandInputVisible(true)}
-                  style={styles.topBarBtn}
-                  title="Add a specific number of chains"
+                  style={{
+                    ...styles.topBarBtn,
+                    ...(hiddenChainCount <= 0 ? styles.topBarBtnDisabled : {}),
+                  }}
+                  disabled={hiddenChainCount <= 0}
+                  title={hiddenChainCount <= 0 ? "All chains shown" : "Add a specific number of chains"}
                 >
                   +N...
                 </button>
@@ -374,13 +402,26 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains, gitHistory 
                   </button>
                 </div>
               )}
+
+              {/* Show All button - disabled when all chains shown */}
               <button
                 onClick={handleShowAll}
-                style={styles.topBarBtnSecondary}
-                title="Show all goal chains in the graph"
+                style={{
+                  ...styles.topBarBtnSecondary,
+                  ...(hiddenChainCount <= 0 ? styles.topBarBtnDisabled : {}),
+                }}
+                disabled={hiddenChainCount <= 0}
+                title={hiddenChainCount <= 0 ? "All chains shown" : "Show all goal chains in the graph"}
               >
                 Show All ({goalChains.length})
               </button>
+
+              {/* Reset button - only when expanded beyond default */}
+              {recentChainCount > DEFAULT_RECENT_CHAINS && (
+                <button onClick={handleShowRecent} style={styles.topBarBtnSecondary}>
+                  Reset to {DEFAULT_RECENT_CHAINS}
+                </button>
+              )}
             </>
           )}
           {viewMode === 'all' && (
@@ -585,7 +626,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
-    backgroundColor: '#0d1117',
+    backgroundColor: '#ffffff',
   },
   // Top Bar - Prominent recency filter controls
   topBar: {
@@ -593,8 +634,8 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 20px',
-    backgroundColor: '#161b22',
-    borderBottom: '1px solid #30363d',
+    backgroundColor: '#f6f8fa',
+    borderBottom: '1px solid #d0d7de',
     zIndex: 20,
     flexShrink: 0,
   },
@@ -606,11 +647,11 @@ const styles: Record<string, React.CSSProperties> = {
   topBarTitle: {
     fontSize: '14px',
     fontWeight: 600,
-    color: '#58a6ff',
+    color: '#0969da',
   },
   topBarSubtitle: {
     fontSize: '13px',
-    color: '#8b949e',
+    color: '#57606a',
     cursor: 'help',
   },
   topBarCenter: {
@@ -620,7 +661,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   topBarBtn: {
     padding: '6px 12px',
-    backgroundColor: '#238636',
+    backgroundColor: '#2da44e',
     border: 'none',
     borderRadius: '6px',
     color: '#fff',
@@ -631,22 +672,37 @@ const styles: Record<string, React.CSSProperties> = {
   },
   topBarBtnSecondary: {
     padding: '6px 12px',
-    backgroundColor: '#30363d',
-    border: '1px solid #484f58',
+    backgroundColor: '#f6f8fa',
+    border: '1px solid #d0d7de',
     borderRadius: '6px',
-    color: '#c9d1d9',
+    color: '#24292f',
     fontSize: '12px',
     fontWeight: 500,
     cursor: 'pointer',
     transition: 'background-color 0.15s',
   },
+  topBarBtnDanger: {
+    padding: '6px 12px',
+    backgroundColor: '#ffebe9',
+    border: '1px solid #ff8182',
+    borderRadius: '6px',
+    color: '#cf222e',
+    fontSize: '12px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    transition: 'background-color 0.15s',
+  },
+  topBarBtnDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
   topBarInput: {
     width: '50px',
     padding: '5px 8px',
-    backgroundColor: '#0d1117',
-    border: '1px solid #238636',
+    backgroundColor: '#ffffff',
+    border: '1px solid #2da44e',
     borderRadius: '6px',
-    color: '#fff',
+    color: '#24292f',
     fontSize: '12px',
     textAlign: 'center' as const,
   },
@@ -657,10 +713,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   topBarStat: {
     fontSize: '12px',
-    color: '#8b949e',
+    color: '#57606a',
   },
   topBarStatDivider: {
-    color: '#484f58',
+    color: '#d0d7de',
   },
   // Hidden chains indicator - visual hint of more content
   hiddenIndicator: {
@@ -669,21 +725,21 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     gap: '12px',
     padding: '8px 20px',
-    backgroundColor: '#1c2128',
-    borderBottom: '1px solid #30363d',
+    backgroundColor: '#fff8c5',
+    borderBottom: '1px solid #d4a72c',
     flexShrink: 0,
   },
   hiddenIndicatorText: {
     fontSize: '12px',
-    color: '#f0883e',
+    color: '#9a6700',
     fontStyle: 'italic',
   },
   hiddenIndicatorBtn: {
     padding: '4px 10px',
     backgroundColor: 'transparent',
-    border: '1px solid #f0883e',
+    border: '1px solid #9a6700',
     borderRadius: '4px',
-    color: '#f0883e',
+    color: '#9a6700',
     fontSize: '11px',
     cursor: 'pointer',
   },
@@ -692,11 +748,13 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'absolute',
     top: '70px',
     left: '20px',
-    backgroundColor: '#16213e',
+    backgroundColor: '#ffffff',
+    border: '1px solid #d0d7de',
     padding: '15px',
     borderRadius: '8px',
     zIndex: 10,
     width: '180px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
   },
   expandInputRow: {
     display: 'flex',
@@ -709,17 +767,17 @@ const styles: Record<string, React.CSSProperties> = {
   label: {
     display: 'block',
     fontSize: '11px',
-    color: '#888',
+    color: '#57606a',
     marginBottom: '6px',
     textTransform: 'uppercase',
   },
   select: {
     width: '100%',
     padding: '8px',
-    backgroundColor: '#1a1a2e',
-    border: '1px solid #333',
+    backgroundColor: '#ffffff',
+    border: '1px solid #d0d7de',
     borderRadius: '4px',
-    color: '#eee',
+    color: '#24292f',
     fontSize: '12px',
   },
   legend: {
@@ -727,7 +785,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   legendTitle: {
     fontSize: '11px',
-    color: '#888',
+    color: '#57606a',
     marginBottom: '8px',
     textTransform: 'uppercase',
   },
@@ -736,7 +794,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '8px',
     fontSize: '11px',
-    color: '#aaa',
+    color: '#57606a',
     marginBottom: '4px',
   },
   legendDot: {
@@ -747,12 +805,13 @@ const styles: Record<string, React.CSSProperties> = {
   zoomInfo: {
     marginTop: '15px',
     fontSize: '11px',
-    color: '#666',
+    color: '#6e7781',
   },
   svgContainer: {
     flex: 1,
     position: 'relative',
     minHeight: 0,
+    backgroundColor: '#f6f8fa',
   },
   svg: {
     width: '100%',
@@ -765,22 +824,22 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100,
   },
   modal: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#ffffff',
     borderRadius: '12px',
     padding: '24px',
     width: '90%',
     maxWidth: '600px',
     maxHeight: '80vh',
     overflowY: 'auto',
-    border: '1px solid #30363d',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+    border: '1px solid #d0d7de',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
   },
   modalHeader: {
     display: 'flex',
@@ -797,8 +856,8 @@ const styles: Record<string, React.CSSProperties> = {
     width: '32px',
     height: '32px',
     border: 'none',
-    background: '#30363d',
-    color: '#8b949e',
+    background: '#f6f8fa',
+    color: '#57606a',
     borderRadius: '6px',
     fontSize: '20px',
     cursor: 'pointer',
@@ -811,61 +870,62 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '20px',
     fontWeight: 600,
     margin: '0 0 8px 0',
-    color: '#e6edf3',
+    color: '#24292f',
   },
   modalMeta: {
     fontSize: '13px',
-    color: '#8b949e',
+    color: '#57606a',
     margin: '0 0 16px 0',
   },
   modalSection: {
     marginBottom: '20px',
     padding: '12px',
-    backgroundColor: '#0d1117',
+    backgroundColor: '#f6f8fa',
     borderRadius: '8px',
   },
   modalDescription: {
     fontSize: '14px',
-    color: '#c9d1d9',
+    color: '#24292f',
     lineHeight: 1.6,
     margin: 0,
   },
   commitSection: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#f6f8fa',
     padding: '12px 16px',
     borderRadius: '8px',
-    borderLeft: '3px solid #3b82f6',
+    borderLeft: '3px solid #0969da',
     marginBottom: '16px',
   },
   commitLink: {
     fontFamily: 'monospace',
     fontSize: '13px',
-    color: '#58a6ff',
+    color: '#0969da',
     textDecoration: 'none',
-    backgroundColor: '#388bfd1a',
+    backgroundColor: '#ddf4ff',
     padding: '2px 8px',
     borderRadius: '4px',
   },
   commitMessage: {
     fontSize: '15px',
-    color: '#e6edf3',
+    color: '#24292f',
     marginTop: '10px',
     lineHeight: 1.5,
     fontWeight: 500,
+    whiteSpace: 'pre-wrap',
   },
   commitMeta: {
     fontSize: '12px',
-    color: '#8b949e',
+    color: '#57606a',
     marginTop: '6px',
   },
   modalFooter: {
     marginTop: '20px',
     paddingTop: '16px',
-    borderTop: '1px solid #30363d',
+    borderTop: '1px solid #d0d7de',
   },
   modalHint: {
     fontSize: '12px',
-    color: '#6e7681',
+    color: '#6e7781',
     fontStyle: 'italic',
   },
   // Connection styles (used inside modal)
@@ -874,7 +934,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sectionTitle: {
     fontSize: '12px',
-    color: '#8b949e',
+    color: '#57606a',
     margin: '0 0 10px 0',
     textTransform: 'uppercase',
     fontWeight: 600,
@@ -884,13 +944,13 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '8px',
     padding: '10px 12px',
-    backgroundColor: '#0d1117',
+    backgroundColor: '#f6f8fa',
     borderRadius: '6px',
     marginBottom: '6px',
     cursor: 'pointer',
     fontSize: '13px',
-    color: '#c9d1d9',
+    color: '#24292f',
     transition: 'background-color 0.15s',
-    border: '1px solid transparent',
+    border: '1px solid #d0d7de',
   },
 };
