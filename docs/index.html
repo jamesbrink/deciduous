@@ -363,6 +363,39 @@
             </ul>
         </div>
 
+        <section class="problem-section" style="margin-top: 30px; padding-top: 0; border-top: none;">
+            <h2>The Problem</h2>
+            <p>Claude (and LLMs generally) lose context. Sessions end, memory compacts, decisions evaporate. Six months later, no one remembers <em>why</em> you chose approach A over approach B.</p>
+            <p>Deciduous solves this by tracking every decision in a queryable graph that persists forever.</p>
+
+            <div class="node-types">
+                <div class="node-type goal">
+                    <h3>Goal</h3>
+                    <p>High-level objectives</p>
+                </div>
+                <div class="node-type decision">
+                    <h3>Decision</h3>
+                    <p>Choice points with options</p>
+                </div>
+                <div class="node-type option">
+                    <h3>Option</h3>
+                    <p>Approaches considered</p>
+                </div>
+                <div class="node-type action">
+                    <h3>Action</h3>
+                    <p>What was implemented</p>
+                </div>
+                <div class="node-type outcome">
+                    <h3>Outcome</h3>
+                    <p>What happened</p>
+                </div>
+                <div class="node-type observation">
+                    <h3>Observation</h3>
+                    <p>Technical insights</p>
+                </div>
+            </div>
+        </section>
+
         <div class="code-block">
             <span class="comment"># Install and set up in any project</span><br>
             <span class="cmd">cargo install deciduous</span><br>
@@ -401,37 +434,27 @@
             </a>
         </section>
 
-        <section class="problem-section">
-            <h2>The Problem</h2>
-            <p>Claude (and LLMs generally) lose context. Sessions end, memory compacts, decisions evaporate. Six months later, no one remembers <em>why</em> you chose approach A over approach B.</p>
-            <p>Deciduous solves this by tracking every decision in a queryable graph that persists forever.</p>
+        <section class="examples-section">
+            <h2>Real PRs Built With Deciduous</h2>
+            <p>Every PR in this repo includes its decision graph. Here are some examples:</p>
 
-            <div class="node-types">
-                <div class="node-type goal">
-                    <h3>Goal</h3>
-                    <p>High-level objectives</p>
-                </div>
-                <div class="node-type decision">
-                    <h3>Decision</h3>
-                    <p>Choice points with options</p>
-                </div>
-                <div class="node-type option">
-                    <h3>Option</h3>
-                    <p>Approaches considered</p>
-                </div>
-                <div class="node-type action">
-                    <h3>Action</h3>
-                    <p>What was implemented</p>
-                </div>
-                <div class="node-type outcome">
-                    <h3>Outcome</h3>
-                    <p>What happened</p>
-                </div>
-                <div class="node-type observation">
-                    <h3>Observation</h3>
-                    <p>Technical insights</p>
-                </div>
-            </div>
+            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/11" class="pr-card">
+                <span class="pr-number">#11</span>
+                <span class="pr-title">Type Unification: TUI + Web with Enforcement Tooling</span>
+                <span class="pr-desc">14 tracked decisions. JSON Schema as canonical source, validation scripts, git hooks, CI enforcement. Full decision tree in PR body.</span>
+            </a>
+
+            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/3" class="pr-card">
+                <span class="pr-number">#3</span>
+                <span class="pr-title">Multi-User Graph Sync</span>
+                <span class="pr-desc">jj-inspired diff/patch model for sharing decisions across developers. UUID-based change_ids survive across databases.</span>
+            </a>
+
+            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/9" class="pr-card">
+                <span class="pr-number">#9</span>
+                <span class="pr-title">TEA Architecture Refactor</span>
+                <span class="pr-desc">Functional core refactor of TUI using The Elm Architecture. Architectural decisions tracked throughout.</span>
+            </a>
         </section>
 
         <section class="demo-section">
@@ -471,35 +494,6 @@ SESSION END -> Graph survives
             <p>This isn't documentation written after the fact. It's a real-time record of how software gets built—captured as decisions happen, not reconstructed from memory later.</p>
             <p><strong>Deciduous is built exclusively using deciduous.</strong> Every feature, every bug fix, every architectural decision is tracked in its own graph.</p>
             <p><a href="demo/">Browse the live graph</a> to see 340+ decisions from the development process.</p>
-        </section>
-
-        <section class="examples-section">
-            <h2>Real PRs Built With Deciduous</h2>
-            <p>Every PR in this repo includes its decision graph. Here are some examples:</p>
-
-            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/11" class="pr-card">
-                <span class="pr-number">#11</span>
-                <span class="pr-title">Type Unification: TUI + Web with Enforcement Tooling</span>
-                <span class="pr-desc">14 tracked decisions. JSON Schema as canonical source, validation scripts, git hooks, CI enforcement. Full decision tree in PR body.</span>
-            </a>
-
-            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/4" class="pr-card">
-                <span class="pr-number">#4</span>
-                <span class="pr-title">Terminal User Interface (TUI)</span>
-                <span class="pr-desc">Rich interactive TUI with vim-style navigation, auto-refresh, DAG visualization. Major feature built entirely with decision tracking.</span>
-            </a>
-
-            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/3" class="pr-card">
-                <span class="pr-number">#3</span>
-                <span class="pr-title">Multi-User Graph Sync</span>
-                <span class="pr-desc">jj-inspired diff/patch model for sharing decisions across developers. UUID-based change_ids survive across databases.</span>
-            </a>
-
-            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/9" class="pr-card">
-                <span class="pr-number">#9</span>
-                <span class="pr-title">TEA Architecture Refactor</span>
-                <span class="pr-desc">Functional core refactor of TUI using The Elm Architecture. Architectural decisions tracked throughout.</span>
-            </a>
         </section>
 
         <footer>

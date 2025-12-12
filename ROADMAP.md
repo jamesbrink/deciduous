@@ -97,6 +97,18 @@
 - [ ] `deciduous log` command to show commits with their linked nodes
 - [ ] Integration with `git log` to annotate commits with decision context
 
+### Web Viewer - PR Integration
+- [ ] **Link PRs to branch-filtered decision graph views**
+  - Click a PR link → opens deciduous web viewer filtered to that branch's nodes
+  - URL format: `deciduous.site/graph?branch=feature-foo` or similar
+  - PR description can embed a link that auto-filters the DAG to just that branch
+  - Users can explore the decision reasoning alongside the PR diff
+  - Integrate with GitHub PR template to auto-include graph link
+- [ ] **GitHub App / Action for PR annotations**
+  - Automatically comment on PRs with link to branch-filtered graph
+  - Badge showing number of decision nodes in the branch
+  - One-click navigation from PR → decision graph explorer
+
 ### TUI Enhancements
 - [ ] **Phase 2: Multi-goal chains**
   - Navigate between related goals
