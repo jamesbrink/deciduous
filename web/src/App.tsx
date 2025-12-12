@@ -115,6 +115,7 @@ export const App: React.FC = () => {
                 graphData={filteredGraphData!}
                 chains={chains}
                 sessions={sessions}
+                gitHistory={gitHistory}
               />
             }
           />
@@ -139,6 +140,7 @@ export const App: React.FC = () => {
               <DagView
                 graphData={filteredGraphData!}
                 chains={chains}
+                gitHistory={gitHistory}
               />
             }
           />

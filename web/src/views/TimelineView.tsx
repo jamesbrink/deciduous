@@ -123,6 +123,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           graphData={graphData}
           onSelectNode={handleSelectNode}
           onClose={() => setSelectedNode(null)}
+          gitHistory={gitHistory}
         />
       </div>
     </div>
@@ -195,7 +196,7 @@ const TimelineItemCard: React.FC<TimelineItemCardProps> = ({ item, onSelectNode 
             <CommitBadge commit={commit.hash} />
             <span style={styles.itemTime}>{dateStr} {timeStr}</span>
           </div>
-          <div style={styles.itemTitle}>{truncate(commit.message, 60)}</div>
+          <div style={styles.itemTitle}>{commit.message}</div>
           <div style={styles.itemMeta}>
             by {commit.author}
             {commit.files_changed && ` · ${commit.files_changed} files`}
