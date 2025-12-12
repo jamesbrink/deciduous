@@ -116,13 +116,13 @@
 - [ ] **DAG view improvements** (currently disabled)
   - Better hierarchical layout algorithm
   - Zoom and pan controls
-- [ ] **Settings system**
-  - `.deciduous/config.toml` for user preferences
-  - Timeline order default (newest-first vs oldest-first)
-  - Editor preference (`$EDITOR` fallback chain)
-  - Color theme selection
-  - Key binding customization
-  - Database path configuration
+- [ ] **Settings system** (partially done)
+  - [x] `.deciduous/config.toml` exists with branch settings
+  - [ ] Timeline order default (newest-first vs oldest-first)
+  - [ ] Editor preference (`$EDITOR` fallback chain)
+  - [ ] Color theme selection
+  - [ ] Key binding customization
+  - [ ] Database path configuration
 - [ ] **Keyboard shortcut audit and redesign**
   - Analyze all current shortcuts for intuitiveness
   - Ensure shortcuts are discoverable and memorable
@@ -150,6 +150,8 @@
 - [ ] Reverse lookup: `deciduous nodes --file src/foo.rs` to find nodes touching a file
 
 ### Prompt Tracking (Extended)
+- [x] **View prompts in web UI**
+  - Display the original prompt in node detail panel
 - [ ] Prompt history view in web UI
   - See what prompt led to each decision chain
   - Search/filter by prompt content
@@ -159,8 +161,7 @@
 - [ ] Prompt → Outcome analysis
   - Correlate prompt patterns with successful outcomes
   - Identify which prompt styles lead to better decisions
-- [ ] **View prompts in web UI**
-  - Display the original prompt in node detail panel
+- [ ] **Extended prompt features in web UI**
   - Filter/search nodes by prompt content
   - "Copy prompt" button for reuse
 
