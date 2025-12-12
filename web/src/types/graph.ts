@@ -1,31 +1,12 @@
 /**
  * Decision Graph Types
  *
- * These types MUST match the Rust backend structs in src/db.rs
- * and the SQLite schema in migrations/00000000000002_decision_graph/up.sql
+ * These types MUST match:
+ * - Rust backend structs in src/db.rs
+ * - TUI types in src/tui/types.rs
+ * - JSON Schema in schema/decision-graph.schema.json
  *
- * Rust DecisionNode (src/db.rs:186-198):
- *   pub struct DecisionNode {
- *       pub id: i32,
- *       pub node_type: String,
- *       pub title: String,
- *       pub description: Option<String>,
- *       pub status: String,
- *       pub created_at: String,
- *       pub updated_at: String,
- *       pub metadata_json: Option<String>,
- *   }
- *
- * Rust DecisionEdge (src/db.rs:200-210):
- *   pub struct DecisionEdge {
- *       pub id: i32,
- *       pub from_node_id: i32,
- *       pub to_node_id: i32,
- *       pub edge_type: String,
- *       pub weight: Option<f64>,
- *       pub rationale: Option<String>,
- *       pub created_at: String,
- *   }
+ * All three sources must stay in sync for consistent behavior.
  */
 
 // =============================================================================
@@ -64,10 +45,11 @@ export interface NodeMetadata {
 
 /**
  * Decision node - represents a point in the decision graph
- * Matches: src/db.rs DecisionNode struct (lines 186-198)
+ * Matches: src/db.rs DecisionNode struct
  */
 export interface DecisionNode {
   id: number;
+  change_id: string;  // UUID for sync across machines
   node_type: NodeType;
   title: string;
   description: string | null;
@@ -79,12 +61,14 @@ export interface DecisionNode {
 
 /**
  * Decision edge - connects two nodes with a relationship
- * Matches: src/db.rs DecisionEdge struct (lines 200-210)
+ * Matches: src/db.rs DecisionEdge struct
  */
 export interface DecisionEdge {
   id: number;
   from_node_id: number;
   to_node_id: number;
+  from_change_id: string | null;  // Source node change_id (for sync)
+  to_change_id: string | null;    // Target node change_id (for sync)
   edge_type: EdgeType;
   weight: number | null;  // SQLite REAL, defaults to 1.0
   rationale: string | null;
@@ -111,6 +95,9 @@ export interface ParsedNode extends Omit<DecisionNode, 'metadata_json'> {
   metadata: NodeMetadata | null;
   confidence: number | null;
   commit: string | null;
+  prompt: string | null;
+  files: string[] | null;
+  branch: string | null;
 }
 
 /**
@@ -283,6 +270,7 @@ export function parseNode(node: DecisionNode): ParsedNode {
   const metadata = parseMetadata(node.metadata_json);
   return {
     id: node.id,
+    change_id: node.change_id,
     node_type: node.node_type,
     title: node.title,
     description: node.description,
@@ -292,6 +280,9 @@ export function parseNode(node: DecisionNode): ParsedNode {
     metadata,
     confidence: metadata?.confidence ?? null,
     commit: metadata?.commit ?? null,
+    prompt: metadata?.prompt ?? null,
+    files: metadata?.files ?? null,
+    branch: metadata?.branch ?? null,
   };
 }
 
@@ -307,4 +298,109 @@ export function isNodeType(value: string): value is NodeType {
  */
 export function isEdgeType(value: string): value is EdgeType {
   return EDGE_TYPES.includes(value as EdgeType);
+}
+
+// =============================================================================
+// Filter Functions - Mirrors TUI state.rs
+// =============================================================================
+
+/**
+ * Filter nodes by type
+ * Mirrors: src/tui/state.rs filter_by_type
+ */
+export function filterByType(nodes: DecisionNode[], typeFilter: NodeType | null): DecisionNode[] {
+  if (!typeFilter) return nodes;
+  return nodes.filter(n => n.node_type === typeFilter);
+}
+
+/**
+ * Filter nodes by branch
+ * Mirrors: src/tui/state.rs filter_by_branch
+ */
+export function filterByBranch(nodes: DecisionNode[], branch: string | null): DecisionNode[] {
+  if (!branch) return nodes;
+  return nodes.filter(n => getBranch(n) === branch);
+}
+
+/**
+ * Filter nodes by search query (title and description)
+ * Mirrors: src/tui/state.rs filter_by_search
+ */
+export function filterBySearch(nodes: DecisionNode[], query: string): DecisionNode[] {
+  if (!query) return nodes;
+  const lowerQuery = query.toLowerCase();
+  return nodes.filter(n =>
+    n.title.toLowerCase().includes(lowerQuery) ||
+    (n.description?.toLowerCase().includes(lowerQuery) ?? false)
+  );
+}
+
+/**
+ * Sort nodes by created_at timestamp
+ * Mirrors: src/tui/state.rs sort_by_time
+ */
+export function sortByTime(nodes: DecisionNode[], oldestFirst: boolean): DecisionNode[] {
+  const sorted = [...nodes];
+  sorted.sort((a, b) => {
+    const timeA = new Date(a.created_at).getTime();
+    const timeB = new Date(b.created_at).getTime();
+    return oldestFirst ? timeA - timeB : timeB - timeA;
+  });
+  return sorted;
+}
+
+/**
+ * Apply all filters and sorting
+ * Mirrors: src/tui/state.rs apply_all_filters
+ */
+export function applyAllFilters(
+  nodes: DecisionNode[],
+  typeFilter: NodeType | null,
+  branchFilter: string | null,
+  searchQuery: string,
+  oldestFirst: boolean
+): DecisionNode[] {
+  let filtered = filterByType(nodes, typeFilter);
+  filtered = filterByBranch(filtered, branchFilter);
+  filtered = filterBySearch(filtered, searchQuery);
+  return sortByTime(filtered, oldestFirst);
+}
+
+/**
+ * Cycle through type filters
+ * Mirrors: src/tui/state.rs cycle_type_filter
+ */
+export function cycleTypeFilter(current: NodeType | null): NodeType | null {
+  if (!current) return NODE_TYPES[0];
+  const idx = NODE_TYPES.indexOf(current);
+  if (idx === -1 || idx + 1 >= NODE_TYPES.length) return null;
+  return NODE_TYPES[idx + 1];
+}
+
+/**
+ * Cycle through branch filters
+ * Mirrors: src/tui/state.rs cycle_branch_filter
+ */
+export function cycleBranchFilter(current: string | null, branches: string[]): string | null {
+  if (branches.length === 0) return null;
+  if (!current) return branches[0];
+  const idx = branches.indexOf(current);
+  if (idx === -1 || idx + 1 >= branches.length) return null;
+  return branches[idx + 1];
+}
+
+/**
+ * Get incoming edges for a node
+ * Mirrors: src/tui/types.rs get_incoming_edges
+ */
+export function getIncomingEdges(nodeId: number, edges: DecisionEdge[]): DecisionEdge[] {
+  return edges.filter(e => e.to_node_id === nodeId);
+}
+
+/**
+ * Get outgoing edges from a node
+ * Mirrors: src/tui/types.rs get_outgoing_edges
+ */
+export function getOutgoingEdges(nodeId: number, edges: DecisionEdge[]): DecisionEdge[] {
+  return edges.filter(e => e.from_node_id === nodeId);
 }

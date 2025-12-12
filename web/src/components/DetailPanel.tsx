@@ -7,6 +7,7 @@
 
 import React from 'react';
 import type { DecisionNode, GraphData } from '../types/graph';
+import { getPrompt, getFiles, getBranch } from '../types/graph';
 import { NodeBadges, EdgeBadge, StatusBadge } from './NodeBadge';
 
 interface DetailPanelProps {
@@ -40,6 +41,9 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
 
   const incoming = graphData.edges.filter(e => e.to_node_id === node.id);
   const outgoing = graphData.edges.filter(e => e.from_node_id === node.id);
+  const prompt = getPrompt(node);
+  const files = getFiles(node);
+  const branch = getBranch(node);
 
   const getNodeTitle = (id: number): string => {
     const n = graphData.nodes.find(n => n.id === id);
@@ -67,6 +71,33 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
       {node.description && (
         <div style={styles.description}>
           {node.description}
+        </div>
+      )}
+
+      {prompt && (
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>Prompt</h3>
+          <div style={styles.prompt}>
+            {prompt}
+          </div>
+        </div>
+      )}
+
+      {files && files.length > 0 && (
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>Associated Files</h3>
+          <div style={styles.fileList}>
+            {files.map((file, i) => (
+              <span key={i} style={styles.fileTag}>{file}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {branch && (
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>Branch</h3>
+          <span style={styles.branchTag}>{branch}</span>
         </div>
       )}
 
@@ -224,5 +255,37 @@ const styles: Record<string, React.CSSProperties> = {
     textDecoration: 'none',
     marginRight: '20px',
     fontSize: '13px',
+  },
+  prompt: {
+    backgroundColor: '#16213e',
+    padding: '15px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    color: '#ddd',
+    lineHeight: 1.6,
+    whiteSpace: 'pre-wrap',
+    fontStyle: 'italic',
+    borderLeft: '3px solid #00d9ff',
+  },
+  fileList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+  },
+  fileTag: {
+    backgroundColor: '#0f3460',
+    padding: '4px 10px',
+    borderRadius: '4px',
+    fontSize: '12px',
+    color: '#ddd',
+    fontFamily: 'monospace',
+  },
+  branchTag: {
+    backgroundColor: '#22c55e33',
+    color: '#4ade80',
+    padding: '4px 10px',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontFamily: 'monospace',
   },
 };
