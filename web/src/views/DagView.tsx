@@ -3,6 +3,9 @@
  *
  * Port of docs/demo/visual-graph.html - Dagre hierarchical layout.
  * Uses D3.js + Dagre for organized DAG visualization.
+ *
+ * Default: Shows only the most recent goal chain for focus.
+ * Use controls to expand and see more chains.
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
@@ -10,7 +13,6 @@ import * as d3 from 'd3';
 import dagre from 'dagre';
 import type { DecisionNode, DecisionEdge, GraphData, Chain } from '../types/graph';
 import { getConfidence, getCommit, truncate } from '../types/graph';
-import { getDescendants } from '../utils/graphProcessing';
 import { TypeBadge, ConfidenceBadge, CommitBadge, EdgeBadge } from '../components/NodeBadge';
 import { NODE_COLORS, getNodeColor, getEdgeColor } from '../utils/colors';
 
@@ -34,6 +36,25 @@ interface DagreEdgeData {
   edge: DecisionEdge;
 }
 
+type ViewMode = 'recent' | 'all' | 'single';
+
+// Default number of recent chains to show
+const DEFAULT_RECENT_CHAINS = 3;
+
+/**
+ * Get the most recent update time for a chain (max of all node updated_at times)
+ */
+function getChainLastUpdated(chain: Chain): number {
+  return Math.max(...chain.nodes.map(n => new Date(n.updated_at).getTime()));
+}
+
+/**
+ * Sort chains by most recent activity (most recently updated nodes)
+ */
+function sortChainsByRecency(chains: Chain[]): Chain[] {
+  return [...chains].sort((a, b) => getChainLastUpdated(b) - getChainLastUpdated(a));
+}
+
 export const DagView: React.FC<DagViewProps> = ({ graphData, chains }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,13 +62,41 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains }) => {
   const [focusChainIndex, setFocusChainIndex] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
 
-  // Get the focused chain's nodes
-  const focusedNodeIds = useMemo(() => {
-    if (focusChainIndex === null) return null;
-    const chain = chains[focusChainIndex];
-    if (!chain) return null;
-    return getDescendants(chain.root.id, graphData);
-  }, [focusChainIndex, chains, graphData]);
+  // New state for recency filtering
+  const [viewMode, setViewMode] = useState<ViewMode>('recent');
+  const [recentChainCount, setRecentChainCount] = useState(DEFAULT_RECENT_CHAINS);
+
+  // Sort chains by recency for display
+  const sortedChains = useMemo(() => sortChainsByRecency(chains), [chains]);
+
+  // Get only goal chains (for the dropdown and recent filtering)
+  const goalChains = useMemo(() =>
+    sortedChains.filter(c => c.root.node_type === 'goal'),
+    [sortedChains]
+  );
+
+  // Determine which chains to show based on view mode
+  const visibleChains = useMemo(() => {
+    if (viewMode === 'single' && focusChainIndex !== null) {
+      return [chains[focusChainIndex]].filter(Boolean);
+    }
+    if (viewMode === 'recent') {
+      return goalChains.slice(0, recentChainCount);
+    }
+    return sortedChains; // 'all' mode
+  }, [viewMode, focusChainIndex, chains, goalChains, sortedChains, recentChainCount]);
+
+  // Get all visible node IDs from visible chains
+  const visibleNodeIds = useMemo(() => {
+    const ids = new Set<number>();
+    visibleChains.forEach(chain => {
+      chain.nodes.forEach(n => ids.add(n.id));
+    });
+    return ids;
+  }, [visibleChains]);
+
+  // Calculate how many chains are hidden
+  const hiddenChainCount = goalChains.length - (viewMode === 'recent' ? recentChainCount : 0);
 
   const handleSelectNode = useCallback((node: DecisionNode) => {
     setSelectedNode(node);
@@ -57,6 +106,43 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains }) => {
     const node = graphData.nodes.find(n => n.id === id);
     if (node) setSelectedNode(node);
   }, [graphData.nodes]);
+
+  // State for custom expand input
+  const [expandInputVisible, setExpandInputVisible] = useState(false);
+  const [expandInputValue, setExpandInputValue] = useState('');
+
+  const handleShowMore = useCallback((count: number = 1) => {
+    setRecentChainCount(prev => Math.min(prev + count, goalChains.length));
+    setExpandInputVisible(false);
+    setExpandInputValue('');
+  }, [goalChains.length]);
+
+  const handleExpandSubmit = useCallback(() => {
+    const num = parseInt(expandInputValue, 10);
+    if (num > 0) {
+      handleShowMore(num);
+    }
+  }, [expandInputValue, handleShowMore]);
+
+  const handleShowAll = useCallback(() => {
+    setViewMode('all');
+  }, []);
+
+  const handleShowRecent = useCallback(() => {
+    setViewMode('recent');
+    setRecentChainCount(DEFAULT_RECENT_CHAINS);
+    setFocusChainIndex(null);
+  }, []);
+
+  const handleFocusChain = useCallback((index: number | null) => {
+    if (index === null) {
+      setViewMode('recent');
+      setFocusChainIndex(null);
+    } else {
+      setViewMode('single');
+      setFocusChainIndex(index);
+    }
+  }, []);
 
   // Build and render DAG
   useEffect(() => {
@@ -69,13 +155,8 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains }) => {
 
     svg.selectAll('*').remove();
 
-    // Filter nodes if focusing on a chain
-    const visibleNodes = focusedNodeIds
-      ? graphData.nodes.filter(n => focusedNodeIds.has(n.id))
-      : graphData.nodes;
-
-    const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
-
+    // Filter nodes based on visibility
+    const visibleNodes = graphData.nodes.filter(n => visibleNodeIds.has(n.id));
     const visibleEdges = graphData.edges.filter(
       e => visibleNodeIds.has(e.from_node_id) && visibleNodeIds.has(e.to_node_id)
     );
@@ -237,27 +318,107 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains }) => {
     return () => {
       svg.on('.zoom', null);
     };
-  }, [graphData, focusedNodeIds, handleSelectNode]);
-
-  // Goals for chain selector
-  const goals = chains.filter(c => c.root.node_type === 'goal');
+  }, [graphData, visibleNodeIds, handleSelectNode]);
 
   return (
     <div style={styles.container}>
-      {/* Controls */}
-      <div style={styles.controls}>
-        <h2 style={styles.title}>DAG View</h2>
+      {/* Top Bar - Recency Filter */}
+      <div style={styles.topBar}>
+        <div style={styles.topBarLeft}>
+          <span style={styles.topBarTitle}>Recency Filter</span>
+          <span style={styles.topBarSubtitle} title="Showing most recently active goal chains first. Each chain includes a goal and all its connected decisions, actions, and outcomes.">
+            Showing {Math.min(recentChainCount, goalChains.length)} of {goalChains.length} goal chains
+          </span>
+        </div>
 
+        <div style={styles.topBarCenter}>
+          {viewMode === 'recent' && hiddenChainCount > 0 && (
+            <>
+              <button
+                onClick={() => handleShowMore(1)}
+                style={styles.topBarBtn}
+                title="Show one more goal chain"
+              >
+                +1 Chain
+              </button>
+              {!expandInputVisible ? (
+                <button
+                  onClick={() => setExpandInputVisible(true)}
+                  style={styles.topBarBtn}
+                  title="Add a specific number of chains"
+                >
+                  +N...
+                </button>
+              ) : (
+                <div style={styles.expandInputRow}>
+                  <input
+                    type="number"
+                    min="1"
+                    max={hiddenChainCount}
+                    value={expandInputValue}
+                    onChange={e => setExpandInputValue(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleExpandSubmit()}
+                    placeholder={String(hiddenChainCount)}
+                    style={styles.topBarInput}
+                    autoFocus
+                  />
+                  <button onClick={handleExpandSubmit} style={styles.topBarBtn}>
+                    Add
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={handleShowAll}
+                style={styles.topBarBtnSecondary}
+                title="Show all goal chains in the graph"
+              >
+                Show All ({goalChains.length})
+              </button>
+            </>
+          )}
+          {viewMode === 'all' && (
+            <button onClick={handleShowRecent} style={styles.topBarBtn}>
+              Show Recent Only
+            </button>
+          )}
+          {viewMode === 'single' && (
+            <button onClick={handleShowRecent} style={styles.topBarBtn}>
+              Back to Recent
+            </button>
+          )}
+        </div>
+
+        <div style={styles.topBarRight}>
+          <span style={styles.topBarStat}>{visibleNodeIds.size} nodes</span>
+          <span style={styles.topBarStatDivider}>·</span>
+          <span style={styles.topBarStat}>{visibleChains.length} chains</span>
+        </div>
+      </div>
+
+      {/* Hidden chains indicator */}
+      {viewMode === 'recent' && hiddenChainCount > 0 && (
+        <div style={styles.hiddenIndicator}>
+          <span style={styles.hiddenIndicatorText}>
+            + {hiddenChainCount} older goal chain{hiddenChainCount !== 1 ? 's' : ''} not shown
+          </span>
+          <button onClick={handleShowAll} style={styles.hiddenIndicatorBtn}>
+            Show all
+          </button>
+        </div>
+      )}
+
+      {/* Side Controls */}
+      <div style={styles.controls}>
         <div style={styles.section}>
-          <label style={styles.label}>Focus Chain</label>
+          <label style={styles.label}>Jump to Chain</label>
           <select
             value={focusChainIndex ?? ''}
-            onChange={e => setFocusChainIndex(e.target.value ? Number(e.target.value) : null)}
+            onChange={e => handleFocusChain(e.target.value ? Number(e.target.value) : null)}
             style={styles.select}
           >
-            <option value="">All Nodes</option>
-            {goals.map((chain, i) => (
-              <option key={i} value={chains.indexOf(chain)}>
+            <option value="">Recent Chains</option>
+            {goalChains.map((chain) => (
+              <option key={chain.root.id} value={chains.indexOf(chain)}>
                 {truncate(chain.root.title, 30)}
               </option>
             ))}
@@ -284,34 +445,41 @@ export const DagView: React.FC<DagViewProps> = ({ graphData, chains }) => {
         <svg ref={svgRef} style={styles.svg} />
       </div>
 
-      {/* Detail Panel */}
+      {/* Detail Modal */}
       {selectedNode && (
-        <div style={styles.detailPanel}>
-          <button onClick={() => setSelectedNode(null)} style={styles.closeBtn}>×</button>
-
-          <div style={styles.detailHeader}>
-            <TypeBadge type={selectedNode.node_type} />
-            <ConfidenceBadge confidence={getConfidence(selectedNode)} />
-            <CommitBadge commit={getCommit(selectedNode)} />
-          </div>
-
-          <h3 style={styles.detailTitle}>{selectedNode.title}</h3>
-          <p style={styles.detailMeta}>
-            Node #{selectedNode.id} · {new Date(selectedNode.created_at).toLocaleString()}
-          </p>
-
-          {selectedNode.description && (
-            <div style={styles.detailSection}>
-              <p style={styles.description}>{selectedNode.description}</p>
+        <div style={styles.modalBackdrop} onClick={() => setSelectedNode(null)}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalHeaderLeft}>
+                <TypeBadge type={selectedNode.node_type} />
+                <ConfidenceBadge confidence={getConfidence(selectedNode)} />
+                <CommitBadge commit={getCommit(selectedNode)} />
+              </div>
+              <button onClick={() => setSelectedNode(null)} style={styles.modalCloseBtn}>×</button>
             </div>
-          )}
 
-          {/* Connections */}
-          <ConnectionsList
-            node={selectedNode}
-            graphData={graphData}
-            onSelectNode={handleSelectNodeById}
-          />
+            <h2 style={styles.modalTitle}>{selectedNode.title}</h2>
+            <p style={styles.modalMeta}>
+              Node #{selectedNode.id} · Created {new Date(selectedNode.created_at).toLocaleString()}
+            </p>
+
+            {selectedNode.description && (
+              <div style={styles.modalSection}>
+                <p style={styles.modalDescription}>{selectedNode.description}</p>
+              </div>
+            )}
+
+            {/* Connections - clickable to navigate */}
+            <ConnectionsList
+              node={selectedNode}
+              graphData={graphData}
+              onSelectNode={handleSelectNodeById}
+            />
+
+            <div style={styles.modalFooter}>
+              <span style={styles.modalHint}>Click connected nodes to navigate · Click outside or × to close</span>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -378,23 +546,125 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     height: '100%',
     display: 'flex',
+    flexDirection: 'column',
     position: 'relative',
     backgroundColor: '#0d1117',
   },
+  // Top Bar - Prominent recency filter controls
+  topBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 20px',
+    backgroundColor: '#161b22',
+    borderBottom: '1px solid #30363d',
+    zIndex: 20,
+    flexShrink: 0,
+  },
+  topBarLeft: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '12px',
+  },
+  topBarTitle: {
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#58a6ff',
+  },
+  topBarSubtitle: {
+    fontSize: '13px',
+    color: '#8b949e',
+    cursor: 'help',
+  },
+  topBarCenter: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  topBarBtn: {
+    padding: '6px 12px',
+    backgroundColor: '#238636',
+    border: 'none',
+    borderRadius: '6px',
+    color: '#fff',
+    fontSize: '12px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    transition: 'background-color 0.15s',
+  },
+  topBarBtnSecondary: {
+    padding: '6px 12px',
+    backgroundColor: '#30363d',
+    border: '1px solid #484f58',
+    borderRadius: '6px',
+    color: '#c9d1d9',
+    fontSize: '12px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    transition: 'background-color 0.15s',
+  },
+  topBarInput: {
+    width: '50px',
+    padding: '5px 8px',
+    backgroundColor: '#0d1117',
+    border: '1px solid #238636',
+    borderRadius: '6px',
+    color: '#fff',
+    fontSize: '12px',
+    textAlign: 'center' as const,
+  },
+  topBarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  topBarStat: {
+    fontSize: '12px',
+    color: '#8b949e',
+  },
+  topBarStatDivider: {
+    color: '#484f58',
+  },
+  // Hidden chains indicator - visual hint of more content
+  hiddenIndicator: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '12px',
+    padding: '8px 20px',
+    backgroundColor: '#1c2128',
+    borderBottom: '1px solid #30363d',
+    flexShrink: 0,
+  },
+  hiddenIndicatorText: {
+    fontSize: '12px',
+    color: '#f0883e',
+    fontStyle: 'italic',
+  },
+  hiddenIndicatorBtn: {
+    padding: '4px 10px',
+    backgroundColor: 'transparent',
+    border: '1px solid #f0883e',
+    borderRadius: '4px',
+    color: '#f0883e',
+    fontSize: '11px',
+    cursor: 'pointer',
+  },
+  // Side controls (simplified)
   controls: {
     position: 'absolute',
-    top: '20px',
+    top: '70px',
     left: '20px',
     backgroundColor: '#16213e',
     padding: '15px',
     borderRadius: '8px',
     zIndex: 10,
-    width: '220px',
+    width: '180px',
   },
-  title: {
-    fontSize: '16px',
-    margin: '0 0 15px 0',
-    color: '#eee',
+  expandInputRow: {
+    display: 'flex',
+    gap: '4px',
+    alignItems: 'center',
   },
   section: {
     marginBottom: '15px',
@@ -444,77 +714,118 @@ const styles: Record<string, React.CSSProperties> = {
   },
   svgContainer: {
     flex: 1,
-    height: '100%',
+    position: 'relative',
+    minHeight: 0,
   },
   svg: {
     width: '100%',
     height: '100%',
   },
-  detailPanel: {
-    position: 'absolute',
-    top: '20px',
-    right: '20px',
-    bottom: '20px',
-    width: '300px',
-    backgroundColor: '#16213e',
-    borderRadius: '8px',
-    padding: '20px',
+  // Modal styles
+  modalBackdrop: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  modal: {
+    backgroundColor: '#161b22',
+    borderRadius: '12px',
+    padding: '24px',
+    width: '90%',
+    maxWidth: '600px',
+    maxHeight: '80vh',
     overflowY: 'auto',
-    zIndex: 10,
+    border: '1px solid #30363d',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
   },
-  closeBtn: {
-    position: 'absolute',
-    top: '10px',
-    right: '10px',
-    width: '28px',
-    height: '28px',
-    border: 'none',
-    background: '#333',
-    color: '#fff',
-    borderRadius: '4px',
-    fontSize: '18px',
-    cursor: 'pointer',
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '16px',
   },
-  detailHeader: {
+  modalHeaderLeft: {
     display: 'flex',
     gap: '8px',
-    marginBottom: '10px',
     flexWrap: 'wrap',
   },
-  detailTitle: {
-    fontSize: '16px',
-    margin: '0 0 8px 0',
-    color: '#eee',
+  modalCloseBtn: {
+    width: '32px',
+    height: '32px',
+    border: 'none',
+    background: '#30363d',
+    color: '#8b949e',
+    borderRadius: '6px',
+    fontSize: '20px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color 0.15s',
   },
-  detailMeta: {
-    fontSize: '12px',
-    color: '#888',
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: 600,
+    margin: '0 0 8px 0',
+    color: '#e6edf3',
+  },
+  modalMeta: {
+    fontSize: '13px',
+    color: '#8b949e',
+    margin: '0 0 16px 0',
+  },
+  modalSection: {
+    marginBottom: '20px',
+    padding: '12px',
+    backgroundColor: '#0d1117',
+    borderRadius: '8px',
+  },
+  modalDescription: {
+    fontSize: '14px',
+    color: '#c9d1d9',
+    lineHeight: 1.6,
     margin: 0,
   },
+  modalFooter: {
+    marginTop: '20px',
+    paddingTop: '16px',
+    borderTop: '1px solid #30363d',
+  },
+  modalHint: {
+    fontSize: '12px',
+    color: '#6e7681',
+    fontStyle: 'italic',
+  },
+  // Connection styles (used inside modal)
   detailSection: {
-    marginTop: '15px',
+    marginTop: '16px',
   },
   sectionTitle: {
-    fontSize: '11px',
-    color: '#888',
-    margin: '0 0 8px 0',
+    fontSize: '12px',
+    color: '#8b949e',
+    margin: '0 0 10px 0',
     textTransform: 'uppercase',
-  },
-  description: {
-    fontSize: '13px',
-    color: '#ccc',
-    lineHeight: 1.5,
-    margin: 0,
+    fontWeight: 600,
   },
   connection: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '6px 8px',
-    backgroundColor: '#1a1a2e',
-    borderRadius: '4px',
-    marginBottom: '4px',
+    gap: '8px',
+    padding: '10px 12px',
+    backgroundColor: '#0d1117',
+    borderRadius: '6px',
+    marginBottom: '6px',
     cursor: 'pointer',
-    fontSize: '11px',
+    fontSize: '13px',
+    color: '#c9d1d9',
+    transition: 'background-color 0.15s',
+    border: '1px solid transparent',
   },
 };
