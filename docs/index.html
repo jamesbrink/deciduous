@@ -283,6 +283,55 @@
             text-decoration: underline;
         }
 
+        .examples-section {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid #d0d7de;
+        }
+        .examples-section h2 {
+            font-size: 1.4rem;
+            color: #24292f;
+            margin-bottom: 10px;
+        }
+        .examples-section > p {
+            color: #57606a;
+            margin-bottom: 20px;
+        }
+        .pr-card {
+            display: block;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .pr-card:hover {
+            border-color: #0969da;
+            background: #ffffff;
+        }
+        .pr-number {
+            display: inline-block;
+            background: #ddf4ff;
+            color: #0969da;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .pr-title {
+            color: #24292f;
+            font-weight: 600;
+        }
+        .pr-desc {
+            display: block;
+            color: #57606a;
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
         footer {
             text-align: center;
             padding: 40px 0;
@@ -418,10 +467,39 @@ SESSION END -> Graph survives
         <section class="story-section">
             <h2>The Story</h2>
             <p>Deciduous was extracted from <a href="https://github.com/notactuallytreyanastasio/losselot">losselot</a>, an audio forensics tool that grew into an experiment in AI-assisted development.</p>
-            <p>The core insight: Claude sessions lose context, but the decision graph survives. Every goal, every rejected approach, every "why did we do it this way?" is preserved and queryable.</p>
-            <p>This isn't documentation written after the fact. It's a real-time record of how software gets built - captured as decisions happen, not reconstructed from memory later.</p>
+            <p>The core insight: LLM sessions lose context, but the decision graph survives. Every goal, every rejected approach, every "why did we do it this way?" is preserved and queryable.</p>
+            <p>This isn't documentation written after the fact. It's a real-time record of how software gets built—captured as decisions happen, not reconstructed from memory later.</p>
             <p><strong>Deciduous is built exclusively using deciduous.</strong> Every feature, every bug fix, every architectural decision is tracked in its own graph.</p>
             <p><a href="demo/">Browse the live graph</a> to see 340+ decisions from the development process.</p>
+        </section>
+
+        <section class="examples-section">
+            <h2>Real PRs Built With Deciduous</h2>
+            <p>Every PR in this repo includes its decision graph. Here are some examples:</p>
+
+            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/11" class="pr-card">
+                <span class="pr-number">#11</span>
+                <span class="pr-title">Type Unification: TUI + Web with Enforcement Tooling</span>
+                <span class="pr-desc">14 tracked decisions. JSON Schema as canonical source, validation scripts, git hooks, CI enforcement. Full decision tree in PR body.</span>
+            </a>
+
+            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/4" class="pr-card">
+                <span class="pr-number">#4</span>
+                <span class="pr-title">Terminal User Interface (TUI)</span>
+                <span class="pr-desc">Rich interactive TUI with vim-style navigation, auto-refresh, DAG visualization. Major feature built entirely with decision tracking.</span>
+            </a>
+
+            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/3" class="pr-card">
+                <span class="pr-number">#3</span>
+                <span class="pr-title">Multi-User Graph Sync</span>
+                <span class="pr-desc">jj-inspired diff/patch model for sharing decisions across developers. UUID-based change_ids survive across databases.</span>
+            </a>
+
+            <a href="https://github.com/notactuallytreyanastasio/deciduous/pull/9" class="pr-card">
+                <span class="pr-number">#9</span>
+                <span class="pr-title">TEA Architecture Refactor</span>
+                <span class="pr-desc">Functional core refactor of TUI using The Elm Architecture. Architectural decisions tracked throughout.</span>
+            </a>
         </section>
 
         <footer>
