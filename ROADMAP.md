@@ -196,6 +196,24 @@
   - `deciduous add action "..." --files <changed-files>`
 - [ ] `deciduous files <node-id>` command to list associated files
 - [ ] Reverse lookup: `deciduous nodes --file src/foo.rs` to find nodes touching a file
+- [ ] **Enforce file linking**
+  - Remind/warn when creating action nodes without `--files`
+  - Hook integration: auto-detect staged files when logging actions
+  - Template instructions emphasizing file association importance
+  - "You modified 5 files but didn't link any to this node" warnings
+- [ ] **`deciduous audit --associate-files`** (like `--associate-commits`)
+  - Retroactively link files to nodes based on:
+    - Commit associations (node has commit → get files from that commit)
+    - Time correlation (files changed near node creation time)
+    - Title/description keyword matching (node mentions "auth" → find auth files)
+  - Interactive mode: show node + candidate files, let user confirm
+  - Batch mode: auto-associate from linked commits (high confidence)
+  - `--dry-run` to preview associations
+- [ ] **File coverage report**
+  - `deciduous audit --file-coverage`
+  - Show which files have decision graph coverage
+  - Identify "dark spots" - frequently changed files with no linked nodes
+  - Help ensure important code has documented reasoning
 
 ### Prompt Tracking (Extended)
 - [x] **View prompts in web UI**
