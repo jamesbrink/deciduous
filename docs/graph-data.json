@@ -6148,6 +6148,127 @@
       "created_at": "2025-12-15T10:49:09.858531-05:00",
       "updated_at": "2025-12-15T10:49:09.858531-05:00",
       "metadata_json": "{\"branch\":\"main\",\"confidence\":95,\"prompt\":\"User wanted quickstart to show Claude doing the logging, not manual CLI\"}"
+    },
+    {
+      "id": 561,
+      "change_id": "4e7c17aa-ba8e-45c1-86c8-6e3e44e99774",
+      "node_type": "outcome",
+      "title": "Quickstart rewritten to show Claude workflow",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T10:49:33.637563-05:00",
+      "updated_at": "2025-12-15T10:49:33.637563-05:00",
+      "metadata_json": "{\"branch\":\"main\",\"commit\":\"cdf0d37\",\"confidence\":95}"
+    },
+    {
+      "id": 562,
+      "change_id": "277591df-ec9f-42fa-8ea0-bc0911cb9251",
+      "node_type": "goal",
+      "title": "Add search functionality to web UI DAG viewer",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:07:24.797223-05:00",
+      "updated_at": "2025-12-15T12:07:24.797223-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"confidence\":90,\"prompt\":\"User requested: search across commit messages, node content, titles/descriptions. Search box with live filtering, highlighting, and dropdown results for mobile+desktop\"}"
+    },
+    {
+      "id": 563,
+      "change_id": "e7c1f116-73c7-490e-80d5-9982f4b2cbea",
+      "node_type": "observation",
+      "title": "Web UI uses React 18 + D3/Dagre, inline styles, no component library. DagView.tsx is main viewer with existing controls panel. Data flows via useGraphData hook.",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:08:46.968948-05:00",
+      "updated_at": "2025-12-15T12:08:46.968948-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"confidence\":95}"
+    },
+    {
+      "id": 564,
+      "change_id": "3206ef49-7e93-4deb-a1b6-25175c51ae86",
+      "node_type": "decision",
+      "title": "Design search component architecture",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:09:06.556132-05:00",
+      "updated_at": "2025-12-15T12:09:06.556132-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"confidence\":85}"
+    },
+    {
+      "id": 565,
+      "change_id": "2112593a-2277-4a42-b15c-bb86419461a4",
+      "node_type": "option",
+      "title": "Place search in top bar - always visible, prominent",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:09:14.723485-05:00",
+      "updated_at": "2025-12-15T12:09:14.723485-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"confidence\":80}"
+    },
+    {
+      "id": 566,
+      "change_id": "7c0cf68f-a563-494d-8d67-cf76e94cec05",
+      "node_type": "option",
+      "title": "Place search in side controls panel - grouped with other controls",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:09:14.754446-05:00",
+      "updated_at": "2025-12-15T12:09:14.754446-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"confidence\":60}"
+    },
+    {
+      "id": 567,
+      "change_id": "6c78087b-42af-4de9-9028-771e26d6d772",
+      "node_type": "action",
+      "title": "Implement search in top bar with dropdown results, highlight matching nodes in graph",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:09:26.066105-05:00",
+      "updated_at": "2025-12-15T12:09:26.066105-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"confidence\":90}"
+    },
+    {
+      "id": 568,
+      "change_id": "e213e882-5279-4c69-ba2d-feec0a37d7d5",
+      "node_type": "outcome",
+      "title": "SearchBar component working - builds successfully with dropdown, highlight, keyboard nav",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:12:02.133245-05:00",
+      "updated_at": "2025-12-15T12:12:02.133245-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"confidence\":95}"
+    },
+    {
+      "id": 569,
+      "change_id": "67e4a6ca-383c-45f9-b825-91abdaacaebc",
+      "node_type": "action",
+      "title": "Preparing commit and PR for graph search feature",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:14:56.481450-05:00",
+      "updated_at": "2025-12-15T12:14:56.481450-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"confidence\":90}"
+    },
+    {
+      "id": 570,
+      "change_id": "2cf7e03b-4094-4a11-b5b7-5c4d9f52027d",
+      "node_type": "outcome",
+      "title": "Commit created: feat(web): add search functionality to DAG viewer",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:16:42.410647-05:00",
+      "updated_at": "2025-12-15T12:16:42.410647-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"commit\":\"d29cfc5\",\"confidence\":95}"
+    },
+    {
+      "id": 571,
+      "change_id": "350cbd5a-40aa-452f-b2b7-297efc68e894",
+      "node_type": "outcome",
+      "title": "PR #98 created: feat(web): Add search functionality to DAG viewer",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T12:17:37.880889-05:00",
+      "updated_at": "2025-12-15T12:17:37.880889-05:00",
+      "metadata_json": "{\"branch\":\"feature/graph-search\",\"commit\":\"049ff12\",\"confidence\":100}"
     }
   ],
   "edges": [
@@ -11529,6 +11650,116 @@
       "weight": 1.0,
       "rationale": "Major UX improvement",
       "created_at": "2025-12-15T10:49:09.867832-05:00"
+    },
+    {
+      "id": 490,
+      "from_node_id": 560,
+      "to_node_id": 561,
+      "from_change_id": "f1f2a37b-5c87-4392-b646-87608236a48b",
+      "to_change_id": "4e7c17aa-ba8e-45c1-86c8-6e3e44e99774",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Complete",
+      "created_at": "2025-12-15T10:49:33.645791-05:00"
+    },
+    {
+      "id": 491,
+      "from_node_id": 562,
+      "to_node_id": 563,
+      "from_change_id": "277591df-ec9f-42fa-8ea0-bc0911cb9251",
+      "to_change_id": "e7c1f116-73c7-490e-80d5-9982f4b2cbea",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Architecture discovery",
+      "created_at": "2025-12-15T12:08:46.977411-05:00"
+    },
+    {
+      "id": 492,
+      "from_node_id": 562,
+      "to_node_id": 564,
+      "from_change_id": "277591df-ec9f-42fa-8ea0-bc0911cb9251",
+      "to_change_id": "3206ef49-7e93-4deb-a1b6-25175c51ae86",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Architecture planning",
+      "created_at": "2025-12-15T12:09:06.563897-05:00"
+    },
+    {
+      "id": 493,
+      "from_node_id": 564,
+      "to_node_id": 565,
+      "from_change_id": "3206ef49-7e93-4deb-a1b6-25175c51ae86",
+      "to_change_id": "2112593a-2277-4a42-b15c-bb86419461a4",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Option A: Top bar placement",
+      "created_at": "2025-12-15T12:09:14.734649-05:00"
+    },
+    {
+      "id": 494,
+      "from_node_id": 564,
+      "to_node_id": 566,
+      "from_change_id": "3206ef49-7e93-4deb-a1b6-25175c51ae86",
+      "to_change_id": "7c0cf68f-a563-494d-8d67-cf76e94cec05",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Option B: Side panel placement",
+      "created_at": "2025-12-15T12:09:14.761436-05:00"
+    },
+    {
+      "id": 495,
+      "from_node_id": 565,
+      "to_node_id": 567,
+      "from_change_id": "2112593a-2277-4a42-b15c-bb86419461a4",
+      "to_change_id": "6c78087b-42af-4de9-9028-771e26d6d772",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Chosen approach: top bar placement for visibility",
+      "created_at": "2025-12-15T12:09:26.075038-05:00"
+    },
+    {
+      "id": 496,
+      "from_node_id": 567,
+      "to_node_id": 568,
+      "from_change_id": "6c78087b-42af-4de9-9028-771e26d6d772",
+      "to_change_id": "e213e882-5279-4c69-ba2d-feec0a37d7d5",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Implementation complete",
+      "created_at": "2025-12-15T12:12:02.141626-05:00"
+    },
+    {
+      "id": 497,
+      "from_node_id": 568,
+      "to_node_id": 569,
+      "from_change_id": "e213e882-5279-4c69-ba2d-feec0a37d7d5",
+      "to_change_id": "67e4a6ca-383c-45f9-b825-91abdaacaebc",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Finalizing feature",
+      "created_at": "2025-12-15T12:14:56.489073-05:00"
+    },
+    {
+      "id": 498,
+      "from_node_id": 569,
+      "to_node_id": 570,
+      "from_change_id": "67e4a6ca-383c-45f9-b825-91abdaacaebc",
+      "to_change_id": "2cf7e03b-4094-4a11-b5b7-5c4d9f52027d",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Feature committed",
+      "created_at": "2025-12-15T12:16:42.418331-05:00"
+    },
+    {
+      "id": 499,
+      "from_node_id": 570,
+      "to_node_id": 571,
+      "from_change_id": "2cf7e03b-4094-4a11-b5b7-5c4d9f52027d",
+      "to_change_id": "350cbd5a-40aa-452f-b2b7-297efc68e894",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "PR submitted for review",
+      "created_at": "2025-12-15T12:17:37.888329-05:00"
     }
   ]
 }
