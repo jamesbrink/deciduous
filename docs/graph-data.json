@@ -5741,6 +5741,39 @@
       "created_at": "2025-12-15T01:43:57.334860-05:00",
       "updated_at": "2025-12-15T01:43:57.334860-05:00",
       "metadata_json": "{\"branch\":\"main\",\"confidence\":95}"
+    },
+    {
+      "id": 524,
+      "change_id": "d37f5df1-2949-43b3-8d41-9eb8ba4be370",
+      "node_type": "goal",
+      "title": "Add standalone Story page with OG tags to GH Pages",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T02:10:58.875784-05:00",
+      "updated_at": "2025-12-15T02:10:58.875784-05:00",
+      "metadata_json": "{\"branch\":\"main\",\"confidence\":90,\"prompt\":\"User asked: make a nice rich media og tags etc preview for the timeline, standalone page with link at top\"}"
+    },
+    {
+      "id": 525,
+      "change_id": "a81d0795-8518-4600-a43b-fdadcf9fe09f",
+      "node_type": "action",
+      "title": "Creating story.html standalone page with OG tags",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T02:11:00.125916-05:00",
+      "updated_at": "2025-12-15T02:11:00.125916-05:00",
+      "metadata_json": "{\"branch\":\"main\",\"confidence\":85}"
+    },
+    {
+      "id": 526,
+      "change_id": "174c95a4-3df3-4d6f-8b7f-b503355cd14c",
+      "node_type": "outcome",
+      "title": "Standalone Story page created with OG meta tags and timeline narrative",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-15T02:15:00.055696-05:00",
+      "updated_at": "2025-12-15T02:15:00.055696-05:00",
+      "metadata_json": "{\"branch\":\"main\",\"commit\":\"9523e6e\",\"confidence\":95}"
     }
   ],
   "edges": [
@@ -10781,6 +10814,28 @@
       "weight": 1.0,
       "rationale": "Action produced outcome",
       "created_at": "2025-12-15T01:44:04.194690-05:00"
+    },
+    {
+      "id": 459,
+      "from_node_id": 524,
+      "to_node_id": 525,
+      "from_change_id": "d37f5df1-2949-43b3-8d41-9eb8ba4be370",
+      "to_change_id": "a81d0795-8518-4600-a43b-fdadcf9fe09f",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Goal spawned action",
+      "created_at": "2025-12-15T02:11:06.218428-05:00"
+    },
+    {
+      "id": 460,
+      "from_node_id": 524,
+      "to_node_id": 526,
+      "from_change_id": "d37f5df1-2949-43b3-8d41-9eb8ba4be370",
+      "to_change_id": "174c95a4-3df3-4d6f-8b7f-b503355cd14c",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Standalone story page with OG meta complete",
+      "created_at": "2025-12-15T02:15:12.982922-05:00"
     }
   ]
 }
