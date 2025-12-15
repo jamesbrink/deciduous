@@ -168,6 +168,21 @@
         .step-recovery-output strong {
             color: #4ade80;
         }
+        .replay-btn {
+            margin-left: auto;
+            background: #374151;
+            color: #9ca3af;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .replay-btn:hover {
+            background: #4b5563;
+            color: #e5e7eb;
+        }
 
         header {
             text-align: center;
@@ -568,48 +583,180 @@
                 <span class="session-dot yellow"></span>
                 <span class="session-dot green"></span>
                 <span class="session-title">Claude Code Session</span>
+                <button class="replay-btn" onclick="replayDemo()">Replay</button>
             </div>
-            <div class="session-content">
+            <div class="session-content" id="session-content">
+                <!-- User request -->
                 <div class="session-step" style="--delay: 0s">
                     <div class="step-label user">You</div>
-                    <div class="step-content">Add authentication to the app</div>
+                    <div class="step-content">Add user authentication to the app. I want JWT with refresh tokens.</div>
                 </div>
-                <div class="session-step" style="--delay: 0.8s">
+
+                <!-- Claude acknowledges and logs goal -->
+                <div class="session-step" style="--delay: 1.2s">
                     <div class="step-label claude">Claude</div>
-                    <div class="step-content code">deciduous add goal "Add authentication" -c 90 -p "User requested auth"</div>
-                    <div class="step-output">Created node 42 (type: goal) [confidence: 90%]</div>
+                    <div class="step-content">I'll add JWT authentication with refresh tokens. Let me log this goal first.</div>
                 </div>
-                <div class="session-step" style="--delay: 1.6s">
+                <div class="session-step" style="--delay: 2.2s">
                     <div class="step-label claude">Claude</div>
-                    <div class="step-content code">deciduous add decision "Choose auth method" -c 75</div>
-                    <div class="step-output">Created node 43 (type: decision)</div>
+                    <div class="step-content code">deciduous add goal "Add JWT authentication with refresh tokens" -c 90 -p "User wants JWT auth with refresh tokens"</div>
+                    <div class="step-output">Created node 127 (type: goal) [confidence: 90%] [branch: feature/auth]</div>
                 </div>
-                <div class="session-step" style="--delay: 2.4s">
+
+                <!-- Decision point -->
+                <div class="session-step" style="--delay: 3.5s">
                     <div class="step-label claude">Claude</div>
-                    <div class="step-content">Implementing JWT authentication with refresh tokens...</div>
-                    <div class="step-files">Modified: src/auth.rs, src/middleware.rs, src/routes/login.rs</div>
+                    <div class="step-content">I need to decide on the token storage strategy. Let me log this decision point.</div>
                 </div>
-                <div class="session-step" style="--delay: 3.2s">
+                <div class="session-step" style="--delay: 4.5s">
                     <div class="step-label claude">Claude</div>
-                    <div class="step-content code">deciduous add outcome "JWT auth implemented" -c 95 --commit HEAD</div>
-                    <div class="step-output">Created node 47 (type: outcome) [commit: a1b2c3d]</div>
+                    <div class="step-content code">deciduous add decision "Token storage strategy" -c 80</div>
+                    <div class="step-output">Created node 128 (type: decision) [confidence: 80%]</div>
                 </div>
-                <div class="session-divider" style="--delay: 4s">
-                    <span>Session ends. Context resets. New session begins...</span>
+                <div class="session-step" style="--delay: 5.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous link 127 128 -r "Need to decide storage before implementing"</div>
+                    <div class="step-output">Created edge 156 (127 → 128 via leads_to)</div>
                 </div>
-                <div class="session-step recovery" style="--delay: 4.8s">
+
+                <!-- Options considered -->
+                <div class="session-step" style="--delay: 6.8s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content">I'm considering two options: httpOnly cookies (more secure) vs localStorage (simpler). Let me log both.</div>
+                </div>
+                <div class="session-step" style="--delay: 8s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous add option "httpOnly cookies - XSS resistant but needs CSRF protection" -c 85</div>
+                    <div class="step-output">Created node 129 (type: option) [confidence: 85%]</div>
+                </div>
+                <div class="session-step" style="--delay: 9s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous add option "localStorage - simpler but vulnerable to XSS" -c 60</div>
+                    <div class="step-output">Created node 130 (type: option) [confidence: 60%]</div>
+                </div>
+                <div class="session-step" style="--delay: 10s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous link 128 129 -r "More secure option" && deciduous link 128 130 -r "Simpler option"</div>
+                    <div class="step-output">Created edge 157 (128 → 129)<br>Created edge 158 (128 → 130)</div>
+                </div>
+
+                <!-- Choice made -->
+                <div class="session-step" style="--delay: 11.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content">I'll go with httpOnly cookies since security is more important here. Logging the action now.</div>
+                </div>
+                <div class="session-step" style="--delay: 12.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous add action "Implementing httpOnly cookie auth with CSRF tokens" -c 85 -f "src/auth.rs,src/middleware.rs"</div>
+                    <div class="step-output">Created node 131 (type: action) [confidence: 85%] [files: src/auth.rs, src/middleware.rs]</div>
+                </div>
+                <div class="session-step" style="--delay: 13.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous link 129 131 -r "Chosen approach"</div>
+                    <div class="step-output">Created edge 159 (129 → 131 via leads_to)</div>
+                </div>
+
+                <!-- Implementation -->
+                <div class="session-step" style="--delay: 14.8s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content">Now implementing the auth system...</div>
+                    <div class="step-files">Writing: src/auth.rs (JWT signing, verification, refresh logic)</div>
+                </div>
+                <div class="session-step" style="--delay: 16s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-files">Writing: src/middleware.rs (cookie extraction, CSRF validation)</div>
+                </div>
+                <div class="session-step" style="--delay: 17s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-files">Writing: src/routes/login.rs, src/routes/refresh.rs</div>
+                </div>
+
+                <!-- Commit and outcome -->
+                <div class="session-step" style="--delay: 18.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content">Implementation complete. Let me commit and log the outcome.</div>
+                </div>
+                <div class="session-step" style="--delay: 19.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">git add -A && git commit -m "feat: add JWT auth with httpOnly cookies"</div>
+                    <div class="step-output">[feature/auth a7b3c9d] feat: add JWT auth with httpOnly cookies<br>4 files changed, 247 insertions(+)</div>
+                </div>
+                <div class="session-step" style="--delay: 21s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous add outcome "JWT auth with httpOnly cookies implemented" -c 95 --commit HEAD</div>
+                    <div class="step-output">Created node 132 (type: outcome) [confidence: 95%] [commit: a7b3c9d]</div>
+                </div>
+                <div class="session-step" style="--delay: 22s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous link 131 132 -r "Implementation successful"</div>
+                    <div class="step-output">Created edge 160 (131 → 132 via leads_to)</div>
+                </div>
+
+                <!-- Sync -->
+                <div class="session-step" style="--delay: 23.3s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous sync</div>
+                    <div class="step-output">Exported graph to docs/graph-data.json<br>&nbsp;&nbsp;132 nodes, 160 edges</div>
+                </div>
+
+                <!-- Session ends -->
+                <div class="session-divider" style="--delay: 25s">
+                    <span>Session ends. Context window resets. Hours pass. New session begins...</span>
+                </div>
+
+                <!-- New session - context recovery -->
+                <div class="session-step recovery" style="--delay: 27s">
                     <div class="step-label user">You</div>
                     <div class="step-content">/context</div>
                 </div>
-                <div class="session-step recovery" style="--delay: 5.6s">
+                <div class="session-step recovery" style="--delay: 28s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous nodes --branch feature/auth | head -20</div>
+                </div>
+                <div class="session-step recovery" style="--delay: 29.5s">
                     <div class="step-label claude">Claude</div>
                     <div class="step-content">Recovering context from decision graph...</div>
                     <div class="step-recovery-output">
-                        <strong>Recent Goals:</strong> Add authentication (completed)<br>
-                        <strong>Last Action:</strong> JWT auth implemented [commit: a1b2c3d]<br>
-                        <strong>Files touched:</strong> auth.rs, middleware.rs, routes/login.rs<br>
-                        <strong>Ready to continue.</strong>
+                        <strong>Branch:</strong> feature/auth<br><br>
+                        <strong>Goal #127:</strong> Add JWT authentication with refresh tokens [90%]<br>
+                        &nbsp;&nbsp;↳ <strong>Decision #128:</strong> Token storage strategy [80%]<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;↳ <strong>Option #129:</strong> httpOnly cookies (chosen) [85%]<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;↳ <strong>Option #130:</strong> localStorage (rejected) [60%]<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↳ <strong>Action #131:</strong> Implementing httpOnly cookie auth [85%]<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↳ <strong>Outcome #132:</strong> JWT auth implemented [95%] [commit: a7b3c9d]<br><br>
+                        <strong>Files modified:</strong> src/auth.rs, src/middleware.rs, src/routes/login.rs, src/routes/refresh.rs<br>
+                        <strong>Status:</strong> Goal completed successfully
                     </div>
+                </div>
+
+                <!-- Claude confirms understanding -->
+                <div class="session-step recovery" style="--delay: 32s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content">I see the auth feature is complete. You implemented JWT with httpOnly cookies (chose it over localStorage for security). The implementation is in commit a7b3c9d. What would you like to work on next?</div>
+                </div>
+
+                <!-- User continues -->
+                <div class="session-step recovery" style="--delay: 34s">
+                    <div class="step-label user">You</div>
+                    <div class="step-content">Add rate limiting to the login endpoint</div>
+                </div>
+                <div class="session-step recovery" style="--delay: 35.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content">I'll add rate limiting. Let me log this as a new goal connected to the auth work.</div>
+                </div>
+                <div class="session-step recovery" style="--delay: 36.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous add goal "Add rate limiting to login endpoint" -c 90 -p "User wants rate limiting on login"</div>
+                    <div class="step-output">Created node 133 (type: goal) [confidence: 90%]</div>
+                </div>
+                <div class="session-step recovery" style="--delay: 37.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content code">deciduous link 132 133 -r "Building on auth implementation"</div>
+                    <div class="step-output">Created edge 161 (132 → 133 via leads_to)</div>
+                </div>
+                <div class="session-step recovery" style="--delay: 38.5s">
+                    <div class="step-label claude">Claude</div>
+                    <div class="step-content">The graph stays connected. Now implementing rate limiting...</div>
                 </div>
             </div>
         </div>
@@ -637,12 +784,6 @@
             <p><strong>LLMs forget. Your decisions shouldn't.</strong> When AI sessions end and context windows reset, critical reasoning evaporates. Deciduous captures every goal, every approach considered, every choice made&mdash;creating a queryable record that survives session boundaries.</p>
             <p><strong>Beyond context recovery.</strong> The graph improves how you work: logging decisions <em>before</em> you act forces clearer thinking. Generate PR writeups directly from your decision trail. Query past reasoning with <code>/context</code> to recover state instantly. Share decisions across teammates with idempotent patches. Link commits to the goals that spawned them.</p>
             <p><strong>Institutional memory that compounds.</strong> Every decision becomes searchable history. New developers can ask "why is this like this?" and get real answers. The graph outlives any single session, any single developer, any single AI assistant.</p>
-        </div>
-
-        <div class="buttons">
-            <a href="demo/" class="btn btn-primary">Browse the Live Graph</a>
-            <a href="tutorial/" class="btn btn-secondary">Get Started</a>
-            <a href="story.html" class="btn btn-secondary">Read the Story</a>
         </div>
 
         <section>
@@ -832,13 +973,6 @@
             <p><a href="story.html">Read the complete chronicle &rarr;</a></p>
         </section>
 
-        <div class="buttons">
-            <a href="demo/" class="btn btn-primary">Browse the Graph</a>
-            <a href="tutorial/" class="btn btn-secondary">Tutorial</a>
-            <a href="https://github.com/notactuallytreyanastasio/deciduous" class="btn btn-secondary">GitHub</a>
-            <a href="https://crates.io/crates/deciduous" class="btn btn-secondary">crates.io</a>
-        </div>
-
         <footer>
             <a href="https://github.com/notactuallytreyanastasio/deciduous">GitHub</a> |
             <a href="https://crates.io/crates/deciduous">crates.io</a> |
@@ -861,6 +995,19 @@
             .catch(() => {
                 // Keep defaults
             });
+
+        // Replay the session demo animation
+        function replayDemo() {
+            const content = document.getElementById('session-content');
+            const steps = content.querySelectorAll('.session-step, .session-divider');
+
+            // Reset all animations
+            steps.forEach(step => {
+                step.style.animation = 'none';
+                step.offsetHeight; // Trigger reflow
+                step.style.animation = null;
+            });
+        }
     </script>
 </body>
 </html>
