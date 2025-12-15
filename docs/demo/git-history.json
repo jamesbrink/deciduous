@@ -1,11 +1,11 @@
 [
   {
-    "hash": "ae2169378fb509c1aa456c1120728c0c5a79e636",
-    "short_hash": "ae21693",
+    "hash": "2b8413a283b2833fea441c0bf970afaa6da8f401",
+    "short_hash": "2b8413a",
     "author": "Bobby Nathan",
-    "date": "2025-12-15T02:57:22-05:00",
-    "message": "docs: add Story View Componentization to roadmap\n\n- Componentize story page elements into discrete, reusable components\n- Define Story data contract/schema with JSON/TypeScript\n- Enable rich context over decision nodes/edges as batches\n- Create higher-level narrative layer over raw decision graph\n- Keep format portable for external systems integration",
-    "files_changed": 5
+    "date": "2025-12-15T02:58:12-05:00",
+    "message": "docs: sync graph after issue creation",
+    "files_changed": 4
   },
   {
     "hash": "ae2169378fb509c1aa456c1120728c0c5a79e636",
