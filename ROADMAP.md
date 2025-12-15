@@ -93,6 +93,12 @@
   - Prefer latest timestamp when edges conflict
   - Interactive resolution mode if needed: `deciduous diff resolve`
 
+### GitHub Pages Site Fixes
+*Get the hosted web viewer working properly*
+- [ ] Get GH Pages to not require CLI / configure auth for static hosting
+- [ ] Get parity between GitHub Pages site and local React app
+- [ ] Make sure all this builds and works + is tested manually for real workflows
+
 ### Context Recovery (Critical)
 *Make compaction restore actually work reliably*
 - [ ] `/context` command fully restores working state after context loss
