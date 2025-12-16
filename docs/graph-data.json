@@ -6973,6 +6973,83 @@
       "created_at": "2025-12-15T23:50:52.338315-05:00",
       "updated_at": "2025-12-15T23:50:52.338315-05:00",
       "metadata_json": "{\"branch\":\"main\",\"confidence\":90}"
+    },
+    {
+      "id": 636,
+      "change_id": "61ee81e0-8fb4-453a-a9e4-291cfcc3486d",
+      "node_type": "goal",
+      "title": "Fix callout card layout in web viewer",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-16T01:10:08.501118-05:00",
+      "updated_at": "2025-12-16T01:10:08.501118-05:00",
+      "metadata_json": "{\"branch\":\"fix-callout-layout\",\"confidence\":90,\"prompt\":\"User showed screenshot of overlapping callout thumbnails and asked: they should come out to the right hand side and they should not go over top anything, and be a little bigger, make them nice and rich but separated. This feature shouldnt exist on mobile. Think of another way to display the decision results on mobile\"}"
+    },
+    {
+      "id": 637,
+      "change_id": "e54194f5-665a-4e9e-a9ff-e229660a5d83",
+      "node_type": "action",
+      "title": "Enhance callout cards to be bigger and show tagline/description",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-16T01:10:16.521555-05:00",
+      "updated_at": "2025-12-16T01:10:16.521555-05:00",
+      "metadata_json": "{\"branch\":\"fix-callout-layout\",\"confidence\":85,\"prompt\":\"User said: we also should make these bigger and have them show more information from the tagline or whatever\"}"
+    },
+    {
+      "id": 638,
+      "change_id": "bfd3eb76-742a-4cf6-9b67-2af6906965e6",
+      "node_type": "outcome",
+      "title": "Callout redesign PR #123 created",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-16T01:12:46.508146-05:00",
+      "updated_at": "2025-12-16T01:12:46.508146-05:00",
+      "metadata_json": "{\"branch\":\"fix-callout-layout\",\"commit\":\"9e9953a\",\"confidence\":95}"
+    },
+    {
+      "id": 639,
+      "change_id": "e74ef42f-237a-4c8b-8a5d-e77f0b68df36",
+      "node_type": "action",
+      "title": "Make callout cards information-dense like detail panel",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-16T01:18:00.659834-05:00",
+      "updated_at": "2025-12-16T01:18:00.659834-05:00",
+      "metadata_json": "{\"branch\":\"fix-callout-layout\",\"confidence\":85,\"prompt\":\"User showed detail panel screenshot with incoming connections and said: It should show the stuff from image 1 a bit better...not just that text. Then allow it to click for full detail but we want to be information-dense\"}"
+    },
+    {
+      "id": 640,
+      "change_id": "e832580b-7227-4fea-b9eb-1f2215bbcb2b",
+      "node_type": "outcome",
+      "title": "Enhanced callout cards with connection info",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-16T01:21:28.106287-05:00",
+      "updated_at": "2025-12-16T01:21:28.106287-05:00",
+      "metadata_json": "{\"branch\":\"fix-callout-layout\",\"commit\":\"e80d20f\",\"confidence\":95}"
+    },
+    {
+      "id": 641,
+      "change_id": "07219eb0-7593-4db2-9b48-32f8e96d69f3",
+      "node_type": "observation",
+      "title": "Search callout bug: GOAL node matching search term not appearing in callouts",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-16T01:22:31.258668-05:00",
+      "updated_at": "2025-12-16T01:22:31.258668-05:00",
+      "metadata_json": "{\"branch\":\"fix-callout-layout\",\"confidence\":90,\"prompt\":\"User searched 'roadmap' and got 16 matches, but the main GOAL #476 'Implement roadmap board system' didn't appear in callout cards despite clearly containing 'roadmap' in its title\"}"
+    },
+    {
+      "id": 642,
+      "change_id": "e33b3828-f8cb-4ce4-9210-ed6bc03c9578",
+      "node_type": "action",
+      "title": "Fix search highlighting to include all matches",
+      "description": null,
+      "status": "pending",
+      "created_at": "2025-12-16T01:26:39.203868-05:00",
+      "updated_at": "2025-12-16T01:26:39.203868-05:00",
+      "metadata_json": "{\"branch\":\"fix-callout-layout\",\"commit\":\"157aa70\",\"confidence\":95}"
     }
   ],
   "edges": [
@@ -13025,6 +13102,72 @@
       "weight": 1.0,
       "rationale": "Follow-up documentation for fix",
       "created_at": "2025-12-15T23:50:58.752481-05:00"
+    },
+    {
+      "id": 551,
+      "from_node_id": 636,
+      "to_node_id": 637,
+      "from_change_id": "61ee81e0-8fb4-453a-a9e4-291cfcc3486d",
+      "to_change_id": "e54194f5-665a-4e9e-a9ff-e229660a5d83",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Enhancement to card design",
+      "created_at": "2025-12-16T01:10:17.698566-05:00"
+    },
+    {
+      "id": 552,
+      "from_node_id": 637,
+      "to_node_id": 638,
+      "from_change_id": "e54194f5-665a-4e9e-a9ff-e229660a5d83",
+      "to_change_id": "bfd3eb76-742a-4cf6-9b67-2af6906965e6",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Action completed with PR creation",
+      "created_at": "2025-12-16T01:12:47.451081-05:00"
+    },
+    {
+      "id": 553,
+      "from_node_id": 636,
+      "to_node_id": 639,
+      "from_change_id": "61ee81e0-8fb4-453a-a9e4-291cfcc3486d",
+      "to_change_id": "e74ef42f-237a-4c8b-8a5d-e77f0b68df36",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Further enhancement to card design",
+      "created_at": "2025-12-16T01:18:02.043887-05:00"
+    },
+    {
+      "id": 554,
+      "from_node_id": 639,
+      "to_node_id": 640,
+      "from_change_id": "e74ef42f-237a-4c8b-8a5d-e77f0b68df36",
+      "to_change_id": "e832580b-7227-4fea-b9eb-1f2215bbcb2b",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Enhancement completed",
+      "created_at": "2025-12-16T01:21:29.026775-05:00"
+    },
+    {
+      "id": 555,
+      "from_node_id": 636,
+      "to_node_id": 641,
+      "from_change_id": "61ee81e0-8fb4-453a-a9e4-291cfcc3486d",
+      "to_change_id": "07219eb0-7593-4db2-9b48-32f8e96d69f3",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Bug discovered during testing",
+      "created_at": "2025-12-16T01:22:32.254474-05:00"
+    },
+    {
+      "id": 556,
+      "from_node_id": 641,
+      "to_node_id": 642,
+      "from_change_id": "07219eb0-7593-4db2-9b48-32f8e96d69f3",
+      "to_change_id": "e33b3828-f8cb-4ce4-9210-ed6bc03c9578",
+      "edge_type": "leads_to",
+      "weight": 1.0,
+      "rationale": "Bug fix implementation",
+      "created_at": "2025-12-16T01:26:40.438893-05:00"
     }
   ]
 }
