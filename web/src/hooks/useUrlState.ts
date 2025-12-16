@@ -18,7 +18,7 @@ export interface UrlState {
   isFullscreen: boolean;
 }
 
-const DEFAULT_CHAIN_COUNT = 8;
+const DEFAULT_CHAIN_COUNT = 1000;
 
 /**
  * Parse URL query parameters into state object

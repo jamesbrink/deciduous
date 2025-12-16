@@ -49,8 +49,8 @@ interface DagreEdgeData {
 }
 
 
-// Default number of recent chains to show
-const DEFAULT_RECENT_CHAINS = 8;
+// Default number of recent chains to show (increased from 8 for larger graphs)
+const DEFAULT_RECENT_CHAINS = 1000;
 
 /**
  * Get the most recent update time for a chain (max of all node updated_at times)

@@ -190,7 +190,57 @@ src/
 ├── init.rs              # Project initialization (deciduous init)
 ├── serve.rs             # HTTP server for web UI
 └── export.rs            # DOT export and PR writeup generation
+
+web/                     # React/TypeScript web viewer source
+├── src/
+│   ├── utils/
+│   │   └── graphProcessing.ts  # Chain building, session grouping algorithms
+│   ├── types/
+│   │   └── graph.ts            # TypeScript types for graph data
+│   └── components/             # React components
+└── dist/                       # Built output (singlefile HTML)
 ```
+
+## Web Viewer Development
+
+**When modifying web viewer code (TypeScript/React), you MUST rebuild and update the embedded HTML.**
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `web/src/utils/graphProcessing.ts` | Chain building, BFS traversal, session grouping |
+| `web/src/types/graph.ts` | TypeScript interfaces for nodes, edges, chains |
+| `src/viewer.html` | Embedded viewer served by `deciduous serve` |
+| `docs/demo/index.html` | Static demo viewer for GitHub Pages |
+
+### Rebuild Process
+
+After modifying any `web/src/**` files:
+
+```bash
+# 1. Build the web viewer (outputs singlefile HTML)
+cd web && npm run build && cd ..
+
+# 2. Copy to embedded locations (use absolute paths)
+cp /path/to/deciduous/web/dist/index.html /path/to/deciduous/src/viewer.html
+cp /path/to/deciduous/web/dist/index.html /path/to/deciduous/docs/demo/index.html
+
+# 3. Run Rust tests to ensure nothing broke
+cargo test
+
+# 4. Build release binary
+cargo build --release
+```
+
+### Chain/Graph Processing Notes
+
+The `buildChains` function in `graphProcessing.ts` uses BFS to traverse **full connected components**:
+- Follows both outgoing AND incoming edges
+- No artificial node limits (MAX_CHAIN_NODES = 0 means unlimited)
+- Chains include all nodes reachable from any direction
+
+This ensures viewing a single chain shows the entire decision tree, not a truncated subset.
 
 ## CLI Commands
 

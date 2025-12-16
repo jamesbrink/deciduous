@@ -247,6 +247,21 @@ cargo clippy            # No warnings?
 
 Only commit if ALL pass.
 
+### Web Viewer Changes
+
+When modifying `web/src/**` files (TypeScript/React), rebuild and update embedded HTML:
+
+```bash
+cd web && npm run build && cd ..
+cp web/dist/index.html src/viewer.html
+cp web/dist/index.html docs/demo/index.html
+cargo test && cargo build --release
+```
+
+Key file: `web/src/utils/graphProcessing.ts` contains chain building and BFS traversal algorithms.
+- Chains traverse full connected components (no node limits)
+- BFS follows both outgoing AND incoming edges
+
 ---
 
 **Live graph**: https://notactuallytreyanastasio.github.io/deciduous/
